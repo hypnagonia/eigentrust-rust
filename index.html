@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rust WebAssembly Example</title>
+</head>
+<body>
+    <h1>Rust WebAssembly 2 + 2 Example</h1>
+    <button id="calculate">Calculate 2 + 2</button>
+    <p>Result: <span id="result"></span></p>
+
+    <script type="module">
+        import init, { add } from './pkg/eigentrust_js.js'
+        console.log(add)
+        async function run() {
+            await init()
+
+            document.getElementById('calculate').addEventListener('click', () => {
+                const result = add(BigInt(2), BigInt(2))
+                document.getElementById('result').textContent = result
+            })
+        }
+
+        run()
+    </script>
+</body>
+</html>
