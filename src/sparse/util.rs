@@ -1,7 +1,6 @@
 use std::ops::Add;
 use std::cmp::Ordering;
 
-// NilIfEmpty returns the given slice, except if empty, it returns None.
 pub fn nil_if_empty<T>(slice: Vec<T>) -> Option<Vec<T>> {
     if slice.is_empty() {
         None
@@ -10,7 +9,6 @@ pub fn nil_if_empty<T>(slice: Vec<T>) -> Option<Vec<T>> {
     }
 }
 
-// Filter returns the slice elements for which the predicate evaluates true.
 pub fn filter<T, F>(slice: Vec<T>, pred: F) -> Vec<T>
 where
     F: Fn(&T) -> bool,

@@ -2,7 +2,6 @@ use wasm_bindgen::prelude::*;
 use std::cmp::Ordering;
 use serde::Serialize;
 
-// Define the Entry struct
 #[derive(Debug, Clone, PartialEq, Serialize)] 
 pub struct Entry {
     pub index: usize,
@@ -15,7 +14,6 @@ impl Entry {
     }
 }
 
-// Define the CooEntry struct
 #[derive(Debug, Clone, PartialEq, Serialize)] 
 pub struct CooEntry {
     pub row: usize,
@@ -29,7 +27,6 @@ impl CooEntry {
     }
 }
 
-// Implement sorting logic for CSR entries
 pub struct CSREntriesSort(Vec<CooEntry>);
 
 impl CSREntriesSort {
@@ -65,17 +62,13 @@ impl CSCEntriesSort {
     }
 }
 
-// Implement sorting by index for Entries
 pub fn sort_entries_by_index(entries: &mut [Entry]) {
     entries.sort_by(|a, b| a.index.cmp(&b.index));
 }
 
-// Implement sorting by value for Entries
 pub fn sort_entries_by_value(entries: &mut [Entry]) {
     entries.sort_by(|a, b| a.value.partial_cmp(&b.value).unwrap());
 }
-
-
 
 #[cfg(test)]
 mod tests {

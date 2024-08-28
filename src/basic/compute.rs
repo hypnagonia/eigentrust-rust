@@ -18,7 +18,6 @@ fn generate_random_f64(min: f64, max: f64) -> f64 {
     min + scale * (max - min)
 }
 
-
 fn generate_csv_data(num_records: usize) -> (String, HashMap<String, usize>) {
     let mut csv_data = String::new();
     let mut peer_indices = HashMap::new();

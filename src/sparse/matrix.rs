@@ -1,7 +1,6 @@
 use std::cmp::Ordering;
 use std::ptr;
 use wasm_bindgen::prelude::*;
-// use wasm_bindgen::JsValue;
 
 use super::entry::Entry;
 use super::vector::Vector;
@@ -98,7 +97,6 @@ impl CSMatrix {
     }
 }
 
-// Merges two spans
 fn merge_span(s1: &[Entry], s2: &[Entry]) -> Vec<Entry> {
     let mut s = Vec::with_capacity(s1.len() + s2.len());
     let mut i1 = 0;
@@ -128,7 +126,6 @@ fn merge_span(s1: &[Entry], s2: &[Entry]) -> Vec<Entry> {
     s
 }
 
-// CSRMatrix implementation
 #[derive(Clone, PartialEq, Debug)]
 pub struct CSRMatrix {
     pub cs_matrix: CSMatrix,
@@ -193,7 +190,6 @@ impl CSRMatrix {
     }
 }
 
-// CSCMatrix implementation
 #[derive(Clone, PartialEq, Debug)]
 pub struct CSCMatrix {
     pub cs_matrix: CSMatrix,
@@ -232,7 +228,6 @@ impl CSCMatrix {
     }
 }
 
-// Helper functions for creating and transposing matrices
 // todo sparse Entry instead of Vec
 pub fn create_csr_matrix(rows: usize, cols: usize, entries: Vec<(usize, usize, f64)>) -> CSRMatrix {
     CSRMatrix::new(rows, cols, entries)

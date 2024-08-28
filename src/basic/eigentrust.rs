@@ -169,23 +169,12 @@ pub fn compute(
             break;
         }   
 
-        // println!("t1 {:?}\n", t1);
-        
         let t1_clone = t1.clone();
         let mut new_t1 = t1.clone();
         new_t1.mul_vec(&ct, &t1_clone)?; 
-
-        // println!("t1 mul_vec{:?}\n", new_t1);
-
         let t2_clone = new_t1.clone();
         new_t1.scale_vec(1.0 - a, &t2_clone); 
-
-        // println!("t1 scale_vec{:?}\n", new_t1);
-
-        // Add vectors
         t1.add_vec(&new_t1, &ap)?;
-
-        //println!("t1 add_vec{:?}\n", t1);
 
         println!(
             "finished: dim = {}, nnz = {}, alpha = {}, epsilon = {}, iterations = {}",
@@ -200,7 +189,6 @@ pub fn compute(
     }
 
     if iter >= max_iters {
-        // return Err(JsValue::from_str("Reached maximum iterations without convergence"));
         return Err("Reached maximum iterations without convergence".to_string());
     }
 

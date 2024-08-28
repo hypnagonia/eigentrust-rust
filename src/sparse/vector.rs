@@ -13,7 +13,7 @@ use wasm_bindgen_futures::spawn_local;
 use std::thread;
 
 /*
-
+todo compile os native and wasm. use multithreading in native env 
 #[cfg(not(target_arch = "wasm32"))]
 use std::thread;
 
@@ -244,11 +244,9 @@ impl Vector {
         self.entries.sort_by_key(|e| e.index);
     }
 
-
     pub fn mul_vec(&mut self, m: &CSRMatrix, v1: &Vector) -> Result<(), String> {
-        let dim = m.cs_matrix.dim()?; // Get the dimension of the matrix.
+        let dim = m.cs_matrix.dim()?;
         if dim != v1.dim {
-            println!("dim={:?} v1.dim={:?}", dim, v1.dim);
             return Err("Dimension mismatch".to_string());
         }
     
