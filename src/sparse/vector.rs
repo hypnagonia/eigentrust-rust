@@ -199,7 +199,7 @@ impl Vector {
     }
 
     pub fn scale_vec(&mut self, a: f64, v1: &Vector) {
-        println!("!!! scale vec {:?} {:?}", a, v1);
+        // println!("!!! scale vec {:?} {:?}", a, v1);
 
         if a == 0.0 {
             self.dim = v1.dim;
@@ -248,6 +248,7 @@ impl Vector {
     pub fn mul_vec(&mut self, m: &CSRMatrix, v1: &Vector) -> Result<(), String> {
         let dim = m.cs_matrix.dim()?; // Get the dimension of the matrix.
         if dim != v1.dim {
+            println!("dim={:?} v1.dim={:?}", dim, v1.dim);
             return Err("Dimension mismatch".to_string());
         }
     

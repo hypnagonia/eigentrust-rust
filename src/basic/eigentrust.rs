@@ -151,7 +151,7 @@ pub fn compute(
     let min_iters = min_iterations.unwrap_or(1);
 
     while iter < max_iters {
-        println!("iter {:?} {:?}\n", iter, flat_tail_checker.reached());
+        // println!("iter {:?} {:?}\n", iter, flat_tail_checker.reached());
 
         // todo check freq
         // todo flat tail

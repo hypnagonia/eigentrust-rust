@@ -4,17 +4,17 @@ use crate::sparse::entry::Entry;
 use crate::sparse::vector::Vector;
 
 use std::collections::HashMap;
-use wasm_bindgen::JsValue;
+
 
 pub fn canonicalize_local_trust(
     local_trust: &mut CSRMatrix,
     pre_trust: Option<Vec<Entry>>,
-) -> Result<(), JsValue> {
+) -> Result<(), String> {
     let n = local_trust.dims().0;
     
     if let Some(ref pre_trust_vec) = pre_trust {
         if pre_trust_vec.len() != n {
-            return Err(JsValue::from_str("Dimension mismatch"));
+            return Err("Dimension mismatch".to_string());
         }
     }
 
@@ -40,7 +40,7 @@ pub fn canonicalize_local_trust(
 // ExtractDistrust function in Rust
 pub fn extract_distrust(
     local_trust: &mut CSRMatrix,
-) -> Result<CSRMatrix, JsValue> {
+) -> Result<CSRMatrix, String> {
     let n = local_trust.dims().0;
     let mut distrust = CSRMatrix::new(n, n, vec![]);
 
@@ -68,15 +68,16 @@ pub fn extract_distrust(
 }
 
 // Helper function to parse CSV data (assuming a simple CSV reader implementation)
-fn parse_csv_line(line: &str, peer_indices: &HashMap<String, usize>) -> Result<(usize, usize, f64), JsValue> {
+fn parse_csv_line(line: &str, peer_indices: &HashMap<String, usize>) -> Result<(usize, usize, f64), String> {
     let fields: Vec<&str> = line.split(',').collect();
+
     if fields.len() < 2 {
-        return Err(JsValue::from_str("Too few fields"));
+        return Err("Too few fields".to_string());
     }
-    let from = *peer_indices.get(fields[0]).ok_or_else(|| JsValue::from_str("Invalid from field"))?;
-    let to = *peer_indices.get(fields[1]).ok_or_else(|| JsValue::from_str("Invalid to field"))?;
+    let from = *peer_indices.get(fields[0]).ok_or_else(|| ("Invalid from field"))?;
+    let to = *peer_indices.get(fields[1]).ok_or_else(|| ("Invalid to field"))?;
     let level = if fields.len() >= 3 {
-        fields[2].parse::<f64>().map_err(|_| JsValue::from_str("Invalid trust level"))?
+        fields[2].parse::<f64>().map_err(|_| ("Invalid trust level"))?
     } else {
         1.0
     };
@@ -86,7 +87,7 @@ fn parse_csv_line(line: &str, peer_indices: &HashMap<String, usize>) -> Result<(
 pub fn read_local_trust_from_csv(
     csv_data: &str,
     peer_indices: HashMap<String, usize>,
-) -> Result<CSRMatrix, JsValue> {
+) -> Result<CSRMatrix, String> {
     let mut entries: Vec<(usize, usize, f64)> = Vec::new();
     let mut max_from = 0;
     let mut max_to = 0;
@@ -104,11 +105,12 @@ pub fn read_local_trust_from_csv(
                 entries.push((from, to, level));
             }
             Err(e) => {
-                return Err(JsValue::from_str(&format!(
-                    "Cannot parse local trust CSV record #{}: {:?}",
+                return Err(format!(
+                    "Cannot parse local trust CSV record #{}: {:?} {:?}",
                     count + 1,
-                    e
-                )));
+                    e,
+                    line
+                ));
             }
         }
     }
