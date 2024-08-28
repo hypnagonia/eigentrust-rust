@@ -1,5 +1,4 @@
 use wasm_bindgen::prelude::*;
-
 use crate::basic::localtrust::{ canonicalize_local_trust, read_local_trust_from_csv };
 use crate::basic::trustvector::{ read_trust_vector_from_csv };
 use crate::basic::eigentrust::{ compute };
@@ -8,7 +7,6 @@ use crate::sparse::vector::{ Vector };
 use crate::sparse::matrix::{ CSRMatrix, CSMatrix };
 use std::collections::HashMap;
 use getrandom::getrandom;
-
 
 fn generate_random_f64(min: f64, max: f64) -> f64 {
     let mut buf = [0u8; 8];
@@ -27,10 +25,8 @@ fn generate_csv_data(num_records: usize) -> (String, HashMap<String, usize>) {
         let to = (i ) % 100;
         let level = generate_random_f64(0.01, 1.0);
 
-        // Generate a CSV line
         csv_data.push_str(&format!("{},{},{}\n", from, to, level));
 
-        // Add to peer_indices if not already added
         peer_indices.entry(from.to_string()).or_insert(from);
         peer_indices.entry(to.to_string()).or_insert(to);
     }
@@ -42,8 +38,7 @@ pub fn run_compute() -> Result<Vector, String> {
     let e = 1.25e-7;
     let a = 0.5;
 
-
-    let (csv_data, peer_indices) = generate_csv_data(100_000);
+    let (csv_data, peer_indices) = generate_csv_data(1000_000);
     let peer_indices2 = peer_indices.clone();
 
     let c2 = read_local_trust_from_csv(&csv_data, peer_indices).unwrap();

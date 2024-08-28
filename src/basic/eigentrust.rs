@@ -6,7 +6,7 @@ use std::cmp;
 use crate::sparse::entry::{Entry};
 use crate::sparse::matrix::{CSRMatrix, CSMatrix};
 use crate::sparse::vector::{Vector};
-
+use web_sys::console;
 
 // Canonicalize scales sparse entries in-place so that their values sum to one.
 // If entries sum to zero, Canonicalize returns an error indicating a zero-sum vector.
@@ -116,6 +116,16 @@ pub struct FlatTailStats {
     pub ranking: Vec<usize>,
 }
 
+#[cfg(target_arch = "wasm32")]
+pub fn log_message(message: &str) {
+    console::log_1(&message.into());
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn log_message(message: &str) {
+    println!("{}", message);
+}
+
 // Compute function implements the EigenTrust algorithm.
 // todo Error instead of String
 pub fn compute(
@@ -176,7 +186,8 @@ pub fn compute(
         new_t1.scale_vec(1.0 - a, &t2_clone); 
         t1.add_vec(&new_t1, &ap)?;
 
-        println!(
+        // console::log_1(&"Hello from Rust!".into());
+        let message = format!(
             "finished: dim = {}, nnz = {}, alpha = {}, epsilon = {}, iterations = {}",
             n,
             ct.cs_matrix.nnz(),
@@ -184,6 +195,8 @@ pub fn compute(
             e,
             iter,
         );
+    
+        log_message(&message);
 
           iter += 1;
     }

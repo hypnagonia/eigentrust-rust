@@ -4,10 +4,8 @@ use std::sync::{ Arc, Mutex };
 
 use wasm_bindgen::prelude::*;
 use serde::Serialize;
-
 use super::entry::{Entry, CooEntry};
 use super::matrix::{CSRMatrix};
-
 
 use wasm_bindgen_futures::spawn_local;
 use std::thread;

@@ -44,7 +44,6 @@ impl CSREntriesSort {
     }
 }
 
-// Implement sorting logic for CSC entries
 pub struct CSCEntriesSort(Vec<CooEntry>);
 
 impl CSCEntriesSort {
