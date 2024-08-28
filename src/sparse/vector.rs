@@ -211,6 +211,56 @@ impl Vector {
     fn sort_entries_by_index(&mut self) {
         self.entries.sort_by_key(|e| e.index);
     }
+
+    pub fn mul_vec(&mut self, m: &CSRMatrix, v1: &Vector) -> Result<(), String> {
+        let dim = m.cs_matrix.dim()?; // Get the dimension of the matrix.
+        if dim != v1.dim {
+            return Err("Dimension mismatch".to_string());
+        }
+
+        // Use `Arc` to share the data between threads safely.
+        let jobs = Arc::new(Mutex::new((0..dim).collect::<Vec<usize>>()));
+        let entries = Arc::new(Mutex::new(Vec::with_capacity(dim)));
+        let mut handles = vec![];
+
+        for _ in 0..32 {
+            let jobs = Arc::clone(&jobs);
+            let entries = Arc::clone(&entries);
+            let m_cloned = m.clone(); // Now `m` is owned, and we clone the owned data.
+            let v1_cloned = v1.clone(); // Similarly, `v1` is owned and cloned.
+
+            let handle = thread::spawn(move || {
+                while let Some(row) = {
+                    let mut jobs = jobs.lock().unwrap();
+                    jobs.pop()
+                } {
+                    // Compute the dot product for the current row.
+                    let product = vec_dot(&m_cloned.row_vector(row), &v1_cloned);
+                    let mut entries = entries.lock().unwrap();
+                    if product != 0.0 {
+                        entries.push(Entry { index: row, value: product });
+                    }
+                }
+            });
+
+            handles.push(handle);
+        }
+
+        // Wait for all threads to complete.
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        // Collect and sort the results.
+        let mut sorted_entries = Arc::try_unwrap(entries).unwrap().into_inner().unwrap();
+        sorted_entries.sort_by_key(|e| e.index);
+
+        // Set the result to self
+        self.dim = dim;
+        self.entries = sorted_entries;
+
+        Ok(())
+    }
 }
 
 pub fn vec_dot(v1: &Vector, v2: &Vector) -> f64 {
@@ -233,6 +283,7 @@ pub fn vec_dot(v1: &Vector, v2: &Vector) -> f64 {
     sum
 }
 
+/* 
 // todo
 pub fn mul_vec(m: &CSRMatrix, v1: &Vector) -> Result<Vector, String> {
     let dim = m.cs_matrix.dim()?; // Get the dimension of the matrix.
@@ -279,7 +330,7 @@ pub fn mul_vec(m: &CSRMatrix, v1: &Vector) -> Result<Vector, String> {
 
     Ok(Vector::new(dim, sorted_entries))
 }
-
+*/
 
 #[cfg(test)]
 mod tests {
@@ -407,5 +458,48 @@ mod tests {
         assert_eq!(dot, 8.0);
     }
 
- 
+    #[test]
+    fn test_norm2() {
+        let v = Vector::new(5, vec![
+            Entry { index: 0, value: 1.0 },
+            Entry { index: 3, value: 2.0 },
+        ]);
+        
+        assert!((v.norm2() - 5.0_f64.sqrt()).abs() < f64::EPSILON, "Norm2 calculation is incorrect");
+    }
+
+    #[test]
+    fn test_mul_vec() {
+        // Create a simple matrix
+        let entries = vec![
+            (0, 0, 1.0),
+            (1, 2, 2.0),
+            (2, 4, 3.0),
+           //CooEntry  { row: 0, column: 0, value: 1.0 },
+           //CooEntry { row: 1, column: 2, value: 2.0 },
+           //CooEntry { row: 2, column: 4, value: 3.0 },
+        ];
+
+        let matrix = CSRMatrix::new(3, 3, entries);
+
+        let v1 = Vector::new(3, vec![
+            Entry { index: 0, value: 1.0 },
+            Entry { index: 2, value: 2.0 },
+            Entry { index: 4, value: 3.0 },
+        ]);
+
+        let mut v2 = Vector::new(0, vec![]); // Start with an empty vector
+
+        let result = v2.mul_vec(&matrix, &v1);
+        
+        assert!(result.is_ok());
+
+        let expected = Vector::new(3, vec![
+            Entry { index: 0, value: 1.0 },
+            Entry { index: 1, value: 4.0 },
+            Entry { index: 2, value: 9.0 },
+        ]);
+
+        assert_eq!(v2, expected);
+    }
 }

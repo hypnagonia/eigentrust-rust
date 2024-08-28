@@ -4,8 +4,8 @@ use std::error::Error;
 use std::f64;
 use std::cmp;
 use crate::sparse::entry::{Entry};
-use crate::sparse::matrix::{CSRMatrix};
-use crate::sparse::vector::{Vector, mul_vec};
+use crate::sparse::matrix::{CSRMatrix, CSMatrix};
+use crate::sparse::vector::{Vector};
 
 // Canonicalize scales sparse entries in-place so that their values sum to one.
 // If entries sum to zero, Canonicalize returns an error indicating a zero-sum vector.
@@ -154,7 +154,7 @@ pub fn compute(
 
         // Clone t1 to avoid mutable and immutable borrow conflicts
         let t1_clone = t1.clone();
-        t1 = mul_vec(&ct, &t1_clone)?; // Perform the matrix-vector multiplication
+        t1.mul_vec(&ct, &t1_clone)?; // Perform the matrix-vector multiplication
         t1.scale_vec(1.0 - a, &t1_clone); // Use t1_clone to avoid mutable borrow conflict
 
         let t1_clone2 = t1.clone(); // Another clone to avoid borrow conflicts
@@ -170,45 +170,51 @@ pub fn compute(
     Ok(t1)
 }
 
+
 pub fn discount_trust_vector(t: &mut Vector, discounts: &CSRMatrix) -> Result<(), String> {
     let mut i1 = 0;
-    let t1 = t.clone();
+    let t1 = t.clone();    
 
-    for (distruster, distrusts) in discounts.cs_matrix.entries.iter().enumerate() {
-        loop {
-            match t1.entries.get(i1) {
-                Some(entry) if entry.index < distruster => {
-                    i1 += 1;
-                    continue;
-                }
-                Some(entry) if entry.index == distruster => {
-                    break;
-                }
-                Some(entry) if entry.index > distruster => {
-                    break;
-                }
-                None => {
-                    return Ok(());
-                }
-                _ => continue,
+    'DiscountsLoop: for (distruster, distrusts) in discounts.cs_matrix.entries.iter().enumerate() {
+        'T1Loop: loop {
+            if i1 >= t1.entries.len() {
+                // No more nonzero trust, remaining distrusters have zero rep
+                // and their distrusts do not matter, so finish
+
+                break 'DiscountsLoop;
+            }    
+            if t1.entries[i1].index < distruster {
+                // The peer at i1 has no distrust, advance to the next peer
+                i1 += 1;
+                continue 'T1Loop;
+            }    
+            if t1.entries[i1].index == distruster {
+                // Found a match!
+                break 'T1Loop;
+            }    
+            if t1.entries[i1].index > distruster {
+                // Distruster has zero rep, advance to the next distruster
+                continue 'DiscountsLoop;
             }
-        }
+        }    
 
-        let mut scaled_distrust_vec = Vector::new(t.dim, distrusts.clone());
-
-        // To avoid borrowing conflicts, don't use `scaled_distrust_vec` as both mutable and immutable.
-        let scale_value = t1.entries[i1].value;
-        scaled_distrust_vec.scale_vec(scale_value, &scaled_distrust_vec.clone());
-
-        // Similarly, avoid borrowing `t` as both mutable and immutable by using a clone of `t`.
-        let t_clone = t.clone();
-        t.sub_vec(&t_clone, &scaled_distrust_vec)?;
+        let scaled_distrust_vec = {
+            let mut temp_vec = Vector::new(t.dim, Vec::new());
+            temp_vec.scale_vec(t1.entries[i1].value, &Vector {
+                dim: t.dim,
+                entries: distrusts.clone(),
+            });
+            temp_vec
+        };    
+        
+        let t2 = t.clone();
+        t.sub_vec(&t2, &scaled_distrust_vec)?;    
 
         i1 += 1;
-    }
-
+    }    
     Ok(())
 }
+    
 
 #[cfg(test)]
 mod tests {
@@ -237,23 +243,31 @@ mod tests {
                         Entry { index: 3, value: 0.25 },
                     ],
                 ),
-                discounts: CSRMatrix::new(
-                    5,
-                    5,
-                    vec![
-                        // 0 - no distrust
+                discounts: CSRMatrix{ cs_matrix: CSMatrix {
+                    major_dim: 5,
+                    minor_dim: 5,
+                    entries: vec![
+                        // 0 - no distrust (empty)
+                        vec![],
                         // 1 - doesn't matter because of zero trust
-                        (2, 1, 0.5),
-                        (3, 1, 0.5),
+                        vec![
+                            Entry { index: 2, value: 0.5 },
+                            Entry { index: 3, value: 0.5 },
+                        ],
                         // 2 - scaled by 0.5 and applied
-                        (0, 2, 0.25),
-                        (4, 2, 0.75),
+                        vec![
+                            Entry { index: 0, value: 0.25 },
+                            Entry { index: 4, value: 0.75 },
+                        ],
                         // 3 - scaled by 0.25 and applied
-                        (2, 3, 0.5),
-                        (4, 3, 0.5),
-                        // 4 - no distrust, also zero global trust
+                        vec![
+                            Entry { index: 2, value: 0.5 },
+                            Entry { index: 4, value: 0.5 },
+                        ],
+                        // 4 - no distrust, also zero global trust (empty)
+                        vec![],
                     ],
-                ),
+                }},
                 expected: Vector::new(
                     5,
                     vec![
