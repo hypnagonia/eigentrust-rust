@@ -176,7 +176,9 @@ impl CSRMatrix {
 
     pub fn transpose(&self) -> Result<CSRMatrix, String> {
         let transposed = self.cs_matrix.transpose()?;
-        Ok(CSRMatrix { cs_matrix: transposed })
+        Ok(CSRMatrix {
+            cs_matrix: transposed,
+        })
     }
 
     pub fn transpose_to_csc(&self) -> CSCMatrix {
@@ -214,7 +216,9 @@ impl CSCMatrix {
 
     pub fn transpose(&self) -> Result<CSCMatrix, String> {
         let transposed = self.cs_matrix.transpose()?;
-        Ok(CSCMatrix { cs_matrix: transposed })
+        Ok(CSCMatrix {
+            cs_matrix: transposed,
+        })
     }
 
     pub fn transpose_to_csr(&self) -> CSRMatrix {
@@ -241,7 +245,6 @@ pub fn transpose_to_csc(matrix: &CSRMatrix) -> CSCMatrix {
     matrix.transpose_to_csc()
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -253,19 +256,52 @@ mod tests {
             minor_dim: 4,
             entries: vec![
                 vec![
-                    Entry { index: 0, value: 100.0 },
-                    Entry { index: 1, value: 200.0 },
-                    Entry { index: 2, value: 300.0 }
+                    Entry {
+                        index: 0,
+                        value: 100.0,
+                    },
+                    Entry {
+                        index: 1,
+                        value: 200.0,
+                    },
+                    Entry {
+                        index: 2,
+                        value: 300.0,
+                    },
                 ],
-                vec![Entry { index: 1, value: 400.0 }, Entry { index: 3, value: 500.0 }],
+                vec![
+                    Entry {
+                        index: 1,
+                        value: 400.0,
+                    },
+                    Entry {
+                        index: 3,
+                        value: 500.0,
+                    },
+                ],
                 vec![],
                 vec![
-                    Entry { index: 0, value: 600.0 },
-                    Entry { index: 1, value: 700.0 },
-                    Entry { index: 2, value: 800.0 },
-                    Entry { index: 3, value: 900.0 }
+                    Entry {
+                        index: 0,
+                        value: 600.0,
+                    },
+                    Entry {
+                        index: 1,
+                        value: 700.0,
+                    },
+                    Entry {
+                        index: 2,
+                        value: 800.0,
+                    },
+                    Entry {
+                        index: 3,
+                        value: 900.0,
+                    },
                 ],
-                vec![Entry { index: 2, value: 1000.0 }]
+                vec![Entry {
+                    index: 2,
+                    value: 1000.0,
+                }],
             ],
         };
 
@@ -273,18 +309,54 @@ mod tests {
             major_dim: 4,
             minor_dim: 5,
             entries: vec![
-                vec![Entry { index: 0, value: 100.0 }, Entry { index: 3, value: 600.0 }],
                 vec![
-                    Entry { index: 0, value: 200.0 },
-                    Entry { index: 1, value: 400.0 },
-                    Entry { index: 3, value: 700.0 }
+                    Entry {
+                        index: 0,
+                        value: 100.0,
+                    },
+                    Entry {
+                        index: 3,
+                        value: 600.0,
+                    },
                 ],
                 vec![
-                    Entry { index: 0, value: 300.0 },
-                    Entry { index: 3, value: 800.0 },
-                    Entry { index: 4, value: 1000.0 }
+                    Entry {
+                        index: 0,
+                        value: 200.0,
+                    },
+                    Entry {
+                        index: 1,
+                        value: 400.0,
+                    },
+                    Entry {
+                        index: 3,
+                        value: 700.0,
+                    },
                 ],
-                vec![Entry { index: 1, value: 500.0 }, Entry { index: 3, value: 900.0 }]
+                vec![
+                    Entry {
+                        index: 0,
+                        value: 300.0,
+                    },
+                    Entry {
+                        index: 3,
+                        value: 800.0,
+                    },
+                    Entry {
+                        index: 4,
+                        value: 1000.0,
+                    },
+                ],
+                vec![
+                    Entry {
+                        index: 1,
+                        value: 500.0,
+                    },
+                    Entry {
+                        index: 3,
+                        value: 900.0,
+                    },
+                ],
             ],
         };
 
@@ -302,8 +374,20 @@ mod tests {
             minor_dim: 3,
             entries: vec![
                 vec![],
-                vec![Entry { index: 2, value: 5.0 }],
-                vec![Entry { index: 1, value: 5.0 }, Entry { index: 2, value: 5.0 }]
+                vec![Entry {
+                    index: 2,
+                    value: 5.0,
+                }],
+                vec![
+                    Entry {
+                        index: 1,
+                        value: 5.0,
+                    },
+                    Entry {
+                        index: 2,
+                        value: 5.0,
+                    },
+                ],
             ],
         };
 
@@ -311,10 +395,40 @@ mod tests {
             major_dim: 4,
             minor_dim: 4,
             entries: vec![
-                vec![Entry { index: 0, value: 8.0 }, Entry { index: 2, value: 8.0 }],
-                vec![Entry { index: 0, value: 8.0 }],
-                vec![Entry { index: 1, value: 8.0 }, Entry { index: 3, value: 8.0 }],
-                vec![Entry { index: 1, value: 8.0 }, Entry { index: 2, value: 8.0 }]
+                vec![
+                    Entry {
+                        index: 0,
+                        value: 8.0,
+                    },
+                    Entry {
+                        index: 2,
+                        value: 8.0,
+                    },
+                ],
+                vec![Entry {
+                    index: 0,
+                    value: 8.0,
+                }],
+                vec![
+                    Entry {
+                        index: 1,
+                        value: 8.0,
+                    },
+                    Entry {
+                        index: 3,
+                        value: 8.0,
+                    },
+                ],
+                vec![
+                    Entry {
+                        index: 1,
+                        value: 8.0,
+                    },
+                    Entry {
+                        index: 2,
+                        value: 8.0,
+                    },
+                ],
             ],
         };
 
@@ -322,14 +436,50 @@ mod tests {
             major_dim: 4,
             minor_dim: 4,
             entries: vec![
-                vec![Entry { index: 0, value: 8.0 }, Entry { index: 2, value: 8.0 }],
-                vec![Entry { index: 0, value: 8.0 }, Entry { index: 2, value: 5.0 }],
                 vec![
-                    Entry { index: 1, value: 8.0 },
-                    Entry { index: 2, value: 5.0 },
-                    Entry { index: 3, value: 8.0 }
+                    Entry {
+                        index: 0,
+                        value: 8.0,
+                    },
+                    Entry {
+                        index: 2,
+                        value: 8.0,
+                    },
                 ],
-                vec![Entry { index: 1, value: 8.0 }, Entry { index: 2, value: 8.0 }]
+                vec![
+                    Entry {
+                        index: 0,
+                        value: 8.0,
+                    },
+                    Entry {
+                        index: 2,
+                        value: 5.0,
+                    },
+                ],
+                vec![
+                    Entry {
+                        index: 1,
+                        value: 8.0,
+                    },
+                    Entry {
+                        index: 2,
+                        value: 5.0,
+                    },
+                    Entry {
+                        index: 3,
+                        value: 8.0,
+                    },
+                ],
+                vec![
+                    Entry {
+                        index: 1,
+                        value: 8.0,
+                    },
+                    Entry {
+                        index: 2,
+                        value: 8.0,
+                    },
+                ],
             ],
         };
 
@@ -350,7 +500,7 @@ mod tests {
             (3, 3, 900.0),
             (4, 2, 1000.0),
             (0, 2, 300.0),
-            (3, 2, 800.0)
+            (3, 2, 800.0),
         ];
 
         let expected = CSRMatrix {
@@ -359,19 +509,52 @@ mod tests {
                 minor_dim: 4,
                 entries: vec![
                     vec![
-                        Entry { index: 0, value: 100.0 },
-                        Entry { index: 1, value: 200.0 },
-                        Entry { index: 2, value: 300.0 }
+                        Entry {
+                            index: 0,
+                            value: 100.0,
+                        },
+                        Entry {
+                            index: 1,
+                            value: 200.0,
+                        },
+                        Entry {
+                            index: 2,
+                            value: 300.0,
+                        },
                     ],
-                    vec![Entry { index: 1, value: 400.0 }, Entry { index: 3, value: 500.0 }],
+                    vec![
+                        Entry {
+                            index: 1,
+                            value: 400.0,
+                        },
+                        Entry {
+                            index: 3,
+                            value: 500.0,
+                        },
+                    ],
                     vec![],
                     vec![
-                        Entry { index: 0, value: 600.0 },
-                        Entry { index: 1, value: 700.0 },
-                        Entry { index: 2, value: 800.0 },
-                        Entry { index: 3, value: 900.0 }
+                        Entry {
+                            index: 0,
+                            value: 600.0,
+                        },
+                        Entry {
+                            index: 1,
+                            value: 700.0,
+                        },
+                        Entry {
+                            index: 2,
+                            value: 800.0,
+                        },
+                        Entry {
+                            index: 3,
+                            value: 900.0,
+                        },
                     ],
-                    vec![Entry { index: 2, value: 1000.0 }]
+                    vec![Entry {
+                        index: 2,
+                        value: 1000.0,
+                    }],
                 ],
             },
         };
@@ -379,6 +562,4 @@ mod tests {
         let result = CSRMatrix::new(5, 4, entries);
         assert_eq!(result, expected);
     }
-     
 }
-

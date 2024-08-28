@@ -1,17 +1,17 @@
 use std::cmp::Ordering;
 use std::f64;
-use std::sync::{ Arc, Mutex };
+use std::sync::{Arc, Mutex};
 
-use wasm_bindgen::prelude::*;
+use super::entry::{CooEntry, Entry};
+use super::matrix::CSRMatrix;
 use serde::Serialize;
-use super::entry::{Entry, CooEntry};
-use super::matrix::{CSRMatrix};
+use wasm_bindgen::prelude::*;
 
-use wasm_bindgen_futures::spawn_local;
 use std::thread;
+use wasm_bindgen_futures::spawn_local;
 
 /*
-todo compile os native and wasm. use multithreading in native env 
+todo compile os native and wasm. use multithreading in native env
 #[cfg(not(target_arch = "wasm32"))]
 use std::thread;
 
@@ -72,10 +72,7 @@ impl Vector {
     }
 
     pub fn sum(&self) -> f64 {
-        self.entries
-            .iter()
-            .map(|e| e.value)
-            .sum()
+        self.entries.iter().map(|e| e.value).sum()
     }
 
     pub fn add_vec(&mut self, v1: &Vector, v2: &Vector) -> Result<(), String> {
@@ -89,28 +86,27 @@ impl Vector {
 
         while !e1.is_empty() || !e2.is_empty() {
             let entry = match (e1.first(), e2.first()) {
-                (Some(e1_first), Some(e2_first)) =>
-                    match e1_first.index.cmp(&e2_first.index) {
-                        Ordering::Less => {
-                            let e = e1_first.clone();
-                            e1 = &e1[1..];
-                            e
-                        }
-                        Ordering::Greater => {
-                            let e = e2_first.clone();
-                            e2 = &e2[1..];
-                            e
-                        }
-                        Ordering::Equal => {
-                            let e = Entry {
-                                index: e1_first.index,
-                                value: e1_first.value + e2_first.value,
-                            };
-                            e1 = &e1[1..];
-                            e2 = &e2[1..];
-                            e
-                        }
+                (Some(e1_first), Some(e2_first)) => match e1_first.index.cmp(&e2_first.index) {
+                    Ordering::Less => {
+                        let e = e1_first.clone();
+                        e1 = &e1[1..];
+                        e
                     }
+                    Ordering::Greater => {
+                        let e = e2_first.clone();
+                        e2 = &e2[1..];
+                        e
+                    }
+                    Ordering::Equal => {
+                        let e = Entry {
+                            index: e1_first.index,
+                            value: e1_first.value + e2_first.value,
+                        };
+                        e1 = &e1[1..];
+                        e2 = &e2[1..];
+                        e
+                    }
+                },
                 (Some(e1_first), None) => {
                     let e = e1_first.clone();
                     e1 = &e1[1..];
@@ -145,31 +141,30 @@ impl Vector {
 
         while !e1.is_empty() || !e2.is_empty() {
             let entry = match (e1.first(), e2.first()) {
-                (Some(e1_first), Some(e2_first)) =>
-                    match e1_first.index.cmp(&e2_first.index) {
-                        Ordering::Less => {
-                            let e = e1_first.clone();
-                            e1 = &e1[1..];
-                            e
-                        }
-                        Ordering::Greater => {
-                            let e = Entry {
-                                index: e2_first.index,
-                                value: -e2_first.value,
-                            };
-                            e2 = &e2[1..];
-                            e
-                        }
-                        Ordering::Equal => {
-                            let e = Entry {
-                                index: e1_first.index,
-                                value: e1_first.value - e2_first.value,
-                            };
-                            e1 = &e1[1..];
-                            e2 = &e2[1..];
-                            e
-                        }
+                (Some(e1_first), Some(e2_first)) => match e1_first.index.cmp(&e2_first.index) {
+                    Ordering::Less => {
+                        let e = e1_first.clone();
+                        e1 = &e1[1..];
+                        e
                     }
+                    Ordering::Greater => {
+                        let e = Entry {
+                            index: e2_first.index,
+                            value: -e2_first.value,
+                        };
+                        e2 = &e2[1..];
+                        e
+                    }
+                    Ordering::Equal => {
+                        let e = Entry {
+                            index: e1_first.index,
+                            value: e1_first.value - e2_first.value,
+                        };
+                        e1 = &e1[1..];
+                        e2 = &e2[1..];
+                        e
+                    }
+                },
                 (Some(e1_first), None) => {
                     let e = e1_first.clone();
                     e1 = &e1[1..];
@@ -214,7 +209,7 @@ impl Vector {
         if a == 1.0 {
             return;
         }
-    
+
         let mut non_zero_entries = Vec::with_capacity(self.entries.len());
         for entry in &mut self.entries {
             entry.value *= a;
@@ -222,7 +217,7 @@ impl Vector {
                 non_zero_entries.push(entry.clone());
             }
         }
-    
+
         self.entries = non_zero_entries;
     }
 
@@ -238,26 +233,29 @@ impl Vector {
         self.entries.sort_by_key(|e| e.index);
     }
 
-    // single-threaded 
+    // single-threaded
     pub fn mul_vec(&mut self, m: &CSRMatrix, v1: &Vector) -> Result<(), String> {
         let dim = m.cs_matrix.dim()?;
         if dim != v1.dim {
             return Err("Dimension mismatch".to_string());
         }
-    
+
         let mut entries = Vec::with_capacity(dim);
-    
+
         for row in 0..dim {
             let product = vec_dot(&m.row_vector(row), &v1);
-    
+
             if product != 0.0 {
-                entries.push(Entry { index: row, value: product });
+                entries.push(Entry {
+                    index: row,
+                    value: product,
+                });
             }
         }
         entries.sort_by_key(|e| e.index);
         self.dim = dim;
         self.entries = entries;
-    
+
         Ok(())
     }
 
@@ -276,20 +274,23 @@ impl Vector {
         for workerIndex in 0..numWorkers {
             let jobs = Arc::clone(&jobs);
             let entries = Arc::clone(&entries);
-            let m_cloned = m.clone(); 
-            let v1_cloned = v1.clone(); 
+            let m_cloned = m.clone();
+            let v1_cloned = v1.clone();
 
             let handle = thread::spawn(move || {
-            // let handle = spawn_local(async move {
+                // let handle = spawn_local(async move {
 
                 while let Some(row) = {
                     let mut jobs = jobs.lock().unwrap();
                     jobs.pop()
                 } {
-                    let product = vec_dot(&m_cloned.row_vector(row), &v1_cloned);            
+                    let product = vec_dot(&m_cloned.row_vector(row), &v1_cloned);
                     let mut entries = entries.lock().unwrap();
                     if product != 0.0 {
-                        entries.push(Entry { index: row, value: product });
+                        entries.push(Entry {
+                            index: row,
+                            value: product,
+                        });
                     }
                 }
             });
@@ -337,20 +338,38 @@ mod tests {
 
     #[test]
     fn test_new_vector() {
-        let v = Vector::new(5, vec![
-            Entry { index: 0, value: 1.0 },
-            Entry { index: 3, value: 2.0 },
-        ]);
+        let v = Vector::new(
+            5,
+            vec![
+                Entry {
+                    index: 0,
+                    value: 1.0,
+                },
+                Entry {
+                    index: 3,
+                    value: 2.0,
+                },
+            ],
+        );
         assert_eq!(v.dim, 5);
         assert_eq!(v.nnz(), 2);
     }
 
     #[test]
     fn test_assign() {
-        let v1 = Vector::new(5, vec![
-            Entry { index: 0, value: 1.0 },
-            Entry { index: 3, value: 2.0 },
-        ]);
+        let v1 = Vector::new(
+            5,
+            vec![
+                Entry {
+                    index: 0,
+                    value: 1.0,
+                },
+                Entry {
+                    index: 3,
+                    value: 2.0,
+                },
+            ],
+        );
         let mut v2 = Vector::new(0, vec![]);
         v2.assign(&v1);
         assert_eq!(v1, v2);
@@ -358,20 +377,38 @@ mod tests {
 
     #[test]
     fn test_clone() {
-        let v1 = Vector::new(5, vec![
-            Entry { index: 0, value: 1.0 },
-            Entry { index: 3, value: 2.0 },
-        ]);
+        let v1 = Vector::new(
+            5,
+            vec![
+                Entry {
+                    index: 0,
+                    value: 1.0,
+                },
+                Entry {
+                    index: 3,
+                    value: 2.0,
+                },
+            ],
+        );
         let v2 = v1.clone();
         assert_eq!(v1, v2);
     }
 
     #[test]
     fn test_set_dim() {
-        let mut v = Vector::new(5, vec![
-            Entry { index: 0, value: 1.0 },
-            Entry { index: 3, value: 2.0 },
-        ]);
+        let mut v = Vector::new(
+            5,
+            vec![
+                Entry {
+                    index: 0,
+                    value: 1.0,
+                },
+                Entry {
+                    index: 3,
+                    value: 2.0,
+                },
+            ],
+        );
         v.set_dim(3);
         assert_eq!(v.dim, 3);
         assert_eq!(v.nnz(), 1);
@@ -379,103 +416,238 @@ mod tests {
 
     #[test]
     fn test_sum() {
-        let v = Vector::new(5, vec![
-            Entry { index: 0, value: 1.0 },
-            Entry { index: 3, value: 2.0 },
-        ]);
+        let v = Vector::new(
+            5,
+            vec![
+                Entry {
+                    index: 0,
+                    value: 1.0,
+                },
+                Entry {
+                    index: 3,
+                    value: 2.0,
+                },
+            ],
+        );
         assert_eq!(v.sum(), 3.0);
     }
 
     #[test]
     fn test_add_vec() {
-        let v1 = Vector::new(5, vec![
-            Entry { index: 0, value: 1.0 },
-            Entry { index: 3, value: 2.0 },
-        ]);
-        let v2 = Vector::new(5, vec![
-            Entry { index: 1, value: 3.0 },
-            Entry { index: 3, value: 4.0 },
-        ]);
+        let v1 = Vector::new(
+            5,
+            vec![
+                Entry {
+                    index: 0,
+                    value: 1.0,
+                },
+                Entry {
+                    index: 3,
+                    value: 2.0,
+                },
+            ],
+        );
+        let v2 = Vector::new(
+            5,
+            vec![
+                Entry {
+                    index: 1,
+                    value: 3.0,
+                },
+                Entry {
+                    index: 3,
+                    value: 4.0,
+                },
+            ],
+        );
         let mut v3 = Vector::new(0, vec![]);
         let result = v3.add_vec(&v1, &v2);
         assert!(result.is_ok());
-        let expected = Vector::new(5, vec![
-            Entry { index: 0, value: 1.0 },
-            Entry { index: 1, value: 3.0 },
-            Entry { index: 3, value: 6.0 },
-        ]);
+        let expected = Vector::new(
+            5,
+            vec![
+                Entry {
+                    index: 0,
+                    value: 1.0,
+                },
+                Entry {
+                    index: 1,
+                    value: 3.0,
+                },
+                Entry {
+                    index: 3,
+                    value: 6.0,
+                },
+            ],
+        );
         assert_eq!(v3, expected);
     }
 
     #[test]
     fn test_sub_vec() {
-        let v1 = Vector::new(5, vec![
-            Entry { index: 0, value: 1.0 },
-            Entry { index: 3, value: 2.0 },
-        ]);
-        let v2 = Vector::new(5, vec![
-            Entry { index: 1, value: 3.0 },
-            Entry { index: 3, value: 4.0 },
-        ]);
+        let v1 = Vector::new(
+            5,
+            vec![
+                Entry {
+                    index: 0,
+                    value: 1.0,
+                },
+                Entry {
+                    index: 3,
+                    value: 2.0,
+                },
+            ],
+        );
+        let v2 = Vector::new(
+            5,
+            vec![
+                Entry {
+                    index: 1,
+                    value: 3.0,
+                },
+                Entry {
+                    index: 3,
+                    value: 4.0,
+                },
+            ],
+        );
         let mut v3 = Vector::new(0, vec![]);
         let result = v3.sub_vec(&v1, &v2);
         assert!(result.is_ok());
-        let expected = Vector::new(5, vec![
-            Entry { index: 0, value: 1.0 },
-            Entry { index: 1, value: -3.0 },
-            Entry { index: 3, value: -2.0 },
-        ]);
+        let expected = Vector::new(
+            5,
+            vec![
+                Entry {
+                    index: 0,
+                    value: 1.0,
+                },
+                Entry {
+                    index: 1,
+                    value: -3.0,
+                },
+                Entry {
+                    index: 3,
+                    value: -2.0,
+                },
+            ],
+        );
         assert_eq!(v3, expected);
     }
 
     #[test]
     fn test_scale_vec() {
-        let v1 = Vector::new(5, vec![
-            Entry { index: 0, value: 1.0 },
-            Entry { index: 3, value: 2.0 },
-        ]);
+        let v1 = Vector::new(
+            5,
+            vec![
+                Entry {
+                    index: 0,
+                    value: 1.0,
+                },
+                Entry {
+                    index: 3,
+                    value: 2.0,
+                },
+            ],
+        );
         let mut v2 = Vector::new(0, vec![]);
         v2.scale_vec(2.0, &v1);
-        let expected = Vector::new(5, vec![
-            Entry { index: 0, value: 2.0 },
-            Entry { index: 3, value: 4.0 },
-        ]);
+        let expected = Vector::new(
+            5,
+            vec![
+                Entry {
+                    index: 0,
+                    value: 2.0,
+                },
+                Entry {
+                    index: 3,
+                    value: 4.0,
+                },
+            ],
+        );
         assert_eq!(v2, expected);
     }
 
     #[test]
     fn test_vec_dot() {
-        let v1 = Vector::new(5, vec![
-            Entry { index: 0, value: 1.0 },
-            Entry { index: 3, value: 2.0 },
-        ]);
-        let v2 = Vector::new(5, vec![
-            Entry { index: 1, value: 3.0 },
-            Entry { index: 3, value: 4.0 },
-        ]);
+        let v1 = Vector::new(
+            5,
+            vec![
+                Entry {
+                    index: 0,
+                    value: 1.0,
+                },
+                Entry {
+                    index: 3,
+                    value: 2.0,
+                },
+            ],
+        );
+        let v2 = Vector::new(
+            5,
+            vec![
+                Entry {
+                    index: 1,
+                    value: 3.0,
+                },
+                Entry {
+                    index: 3,
+                    value: 4.0,
+                },
+            ],
+        );
         let dot = vec_dot(&v1, &v2);
         assert_eq!(dot, 8.0);
 
-        let v3 = Vector::new(4, vec![
-            Entry { index: 0, value: 1.0 },
-            Entry { index: 3, value: 2.0 },
-        ]);
-        let v4 = Vector::new(5, vec![
-            Entry { index: 1, value: 3.0 },
-            Entry { index: 3, value: 4.0 },
-        ]);
+        let v3 = Vector::new(
+            4,
+            vec![
+                Entry {
+                    index: 0,
+                    value: 1.0,
+                },
+                Entry {
+                    index: 3,
+                    value: 2.0,
+                },
+            ],
+        );
+        let v4 = Vector::new(
+            5,
+            vec![
+                Entry {
+                    index: 1,
+                    value: 3.0,
+                },
+                Entry {
+                    index: 3,
+                    value: 4.0,
+                },
+            ],
+        );
         let dot2 = vec_dot(&v3, &v4);
         assert_eq!(dot2, 8.0);
     }
 
     #[test]
     fn test_norm2() {
-        let v = Vector::new(5, vec![
-            Entry { index: 0, value: 1.0 },
-            Entry { index: 3, value: 2.0 },
-        ]);
-        
-        assert!((v.norm2() - 5.0_f64.sqrt()).abs() < f64::EPSILON, "Norm2 calculation is incorrect");
+        let v = Vector::new(
+            5,
+            vec![
+                Entry {
+                    index: 0,
+                    value: 1.0,
+                },
+                Entry {
+                    index: 3,
+                    value: 2.0,
+                },
+            ],
+        );
+
+        assert!(
+            (v.norm2() - 5.0_f64.sqrt()).abs() < f64::EPSILON,
+            "Norm2 calculation is incorrect"
+        );
     }
 
     #[test]
@@ -485,30 +657,54 @@ mod tests {
             (0, 0, 1.0),
             (1, 2, 2.0),
             (2, 4, 3.0),
-           //CooEntry  { row: 0, column: 0, value: 1.0 },
-           //CooEntry { row: 1, column: 2, value: 2.0 },
-           //CooEntry { row: 2, column: 4, value: 3.0 },
+            //CooEntry  { row: 0, column: 0, value: 1.0 },
+            //CooEntry { row: 1, column: 2, value: 2.0 },
+            //CooEntry { row: 2, column: 4, value: 3.0 },
         ];
 
         let matrix = CSRMatrix::new(3, 3, entries);
 
-        let v1 = Vector::new(3, vec![
-            Entry { index: 0, value: 1.0 },
-            Entry { index: 2, value: 2.0 },
-            Entry { index: 4, value: 3.0 },
-        ]);
+        let v1 = Vector::new(
+            3,
+            vec![
+                Entry {
+                    index: 0,
+                    value: 1.0,
+                },
+                Entry {
+                    index: 2,
+                    value: 2.0,
+                },
+                Entry {
+                    index: 4,
+                    value: 3.0,
+                },
+            ],
+        );
 
         let mut v2 = Vector::new(0, vec![]); // Start with an empty vector
 
         let result = v2.mul_vec(&matrix, &v1);
-        
+
         assert!(result.is_ok());
 
-        let expected = Vector::new(3, vec![
-            Entry { index: 0, value: 1.0 },
-            Entry { index: 1, value: 4.0 },
-            Entry { index: 2, value: 9.0 },
-        ]);
+        let expected = Vector::new(
+            3,
+            vec![
+                Entry {
+                    index: 0,
+                    value: 1.0,
+                },
+                Entry {
+                    index: 1,
+                    value: 4.0,
+                },
+                Entry {
+                    index: 2,
+                    value: 9.0,
+                },
+            ],
+        );
 
         assert_eq!(v2, expected);
     }

@@ -1,21 +1,18 @@
-use wasm_bindgen::prelude::*;
+use crate::sparse::entry::Entry;
+use crate::sparse::matrix::{CSMatrix, CSRMatrix};
+use crate::sparse::vector::Vector;
+use std::cmp;
 use std::collections::HashMap;
 use std::error::Error;
 use std::f64;
-use std::cmp;
-use crate::sparse::entry::{ Entry };
-use crate::sparse::matrix::{ CSRMatrix, CSMatrix };
-use crate::sparse::vector::{ Vector };
+use wasm_bindgen::prelude::*;
 
 use web_sys::console;
 
 // Canonicalize scales sparse entries in-place so that their values sum to one.
 // If entries sum to zero, Canonicalize returns an error indicating a zero-sum vector.
 pub fn canonicalize(entries: &mut [Entry]) -> Result<(), String> {
-    let sum: f64 = entries
-        .iter()
-        .map(|entry| entry.value)
-        .sum();
+    let sum: f64 = entries.iter().map(|entry| entry.value).sum();
     if sum == 0.0 {
         return Err("Zero sum vector".to_string());
     }
@@ -91,11 +88,12 @@ impl FlatTailChecker {
     // Updates the checker with another iteration of the trust vector.
     pub fn update(&mut self, t: &Vector, d: f64) {
         let mut entries = t.entries.clone();
-        entries.sort_by(|a, b| b.value.partial_cmp(&a.value).unwrap_or(cmp::Ordering::Equal));
-        let ranking: Vec<usize> = entries
-            .iter()
-            .map(|entry| entry.index)
-            .collect();
+        entries.sort_by(|a, b| {
+            b.value
+                .partial_cmp(&a.value)
+                .unwrap_or(cmp::Ordering::Equal)
+        });
+        let ranking: Vec<usize> = entries.iter().map(|entry| entry.index).collect();
 
         if ranking == self.stats.ranking {
             self.stats.length += 1;
@@ -141,7 +139,7 @@ pub fn compute(
     a: f64,
     e: f64,
     max_iterations: Option<usize>,
-    min_iterations: Option<usize>
+    min_iterations: Option<usize>,
 ) -> Result<Vector, String> {
     let n = c.cs_matrix.major_dim;
     if n == 0 {
@@ -170,11 +168,10 @@ pub fn compute(
 
         // todo check freq
         // todo flat tail
-        if
-            iter >= min_iters &&
-            conv_checker.update(&t1).is_ok() &&
-            conv_checker.converged() &&
-            flat_tail_checker.reached()
+        if iter >= min_iters
+            && conv_checker.update(&t1).is_ok()
+            && conv_checker.converged()
+            && flat_tail_checker.reached()
         {
             break;
         }
@@ -248,7 +245,7 @@ pub fn discount_trust_vector(t: &mut Vector, discounts: &CSRMatrix) -> Result<()
                 &(Vector {
                     dim: t.dim,
                     entries: distrusts.clone(),
-                })
+                }),
             );
             temp_vec
         };
@@ -282,10 +279,19 @@ mod tests {
             t: Vector::new(
                 5,
                 vec![
-                    Entry { index: 0, value: 0.25 },
-                    Entry { index: 2, value: 0.5 },
-                    Entry { index: 3, value: 0.25 }
-                ]
+                    Entry {
+                        index: 0,
+                        value: 0.25,
+                    },
+                    Entry {
+                        index: 2,
+                        value: 0.5,
+                    },
+                    Entry {
+                        index: 3,
+                        value: 0.25,
+                    },
+                ],
             ),
             discounts: CSRMatrix {
                 cs_matrix: CSMatrix {
@@ -295,13 +301,40 @@ mod tests {
                         // 0 - no distrust (empty)
                         vec![],
                         // 1 - doesn't matter because of zero trust
-                        vec![Entry { index: 2, value: 0.5 }, Entry { index: 3, value: 0.5 }],
+                        vec![
+                            Entry {
+                                index: 2,
+                                value: 0.5,
+                            },
+                            Entry {
+                                index: 3,
+                                value: 0.5,
+                            },
+                        ],
                         // 2 - scaled by 0.5 and applied
-                        vec![Entry { index: 0, value: 0.25 }, Entry { index: 4, value: 0.75 }],
+                        vec![
+                            Entry {
+                                index: 0,
+                                value: 0.25,
+                            },
+                            Entry {
+                                index: 4,
+                                value: 0.75,
+                            },
+                        ],
                         // 3 - scaled by 0.25 and applied
-                        vec![Entry { index: 2, value: 0.5 }, Entry { index: 4, value: 0.5 }],
+                        vec![
+                            Entry {
+                                index: 2,
+                                value: 0.5,
+                            },
+                            Entry {
+                                index: 4,
+                                value: 0.5,
+                            },
+                        ],
                         // 4 - no distrust, also zero global trust (empty)
-                        vec![]
+                        vec![],
                     ],
                 },
             },
@@ -309,11 +342,23 @@ mod tests {
                 5,
                 vec![
                     // {index, original - distrust*gt}
-                    Entry { index: 0, value: 0.25 - 0.25 * 0.5 }, // peer 2
-                    Entry { index: 2, value: 0.5 - 0.5 * 0.25 }, // peer 3
-                    Entry { index: 3, value: 0.25 },
-                    Entry { index: 4, value: 0.0 - 0.75 * 0.5 - 0.5 * 0.25 } // peer 2 & 3
-                ]
+                    Entry {
+                        index: 0,
+                        value: 0.25 - 0.25 * 0.5,
+                    }, // peer 2
+                    Entry {
+                        index: 2,
+                        value: 0.5 - 0.5 * 0.25,
+                    }, // peer 3
+                    Entry {
+                        index: 3,
+                        value: 0.25,
+                    },
+                    Entry {
+                        index: 4,
+                        value: 0.0 - 0.75 * 0.5 - 0.5 * 0.25,
+                    }, // peer 2 & 3
+                ],
             ),
         }];
 
@@ -321,7 +366,11 @@ mod tests {
             let mut t = test.t.clone();
             let result = discount_trust_vector(&mut t, &test.discounts);
             assert!(result.is_ok(), "{}: DiscountTrustVector failed", test.name);
-            assert_eq!(t, test.expected, "{}: Vector does not match expected value", test.name);
+            assert_eq!(
+                t, test.expected,
+                "{}: Vector does not match expected value",
+                test.name
+            );
         }
     }
 
@@ -333,14 +382,35 @@ mod tests {
         let p = Vector::new(
             8,
             vec![
-                Entry { index: 0, value: 0.14285714285714285 },
-                Entry { index: 1, value: 0.14285714285714285 },
-                Entry { index: 2, value: 0.14285714285714285 },
-                Entry { index: 3, value: 0.14285714285714285 },
-                Entry { index: 4, value: 0.14285714285714285 },
-                Entry { index: 5, value: 0.14285714285714285 },
-                Entry { index: 6, value: 0.14285714285714285 }
-            ]
+                Entry {
+                    index: 0,
+                    value: 0.14285714285714285,
+                },
+                Entry {
+                    index: 1,
+                    value: 0.14285714285714285,
+                },
+                Entry {
+                    index: 2,
+                    value: 0.14285714285714285,
+                },
+                Entry {
+                    index: 3,
+                    value: 0.14285714285714285,
+                },
+                Entry {
+                    index: 4,
+                    value: 0.14285714285714285,
+                },
+                Entry {
+                    index: 5,
+                    value: 0.14285714285714285,
+                },
+                Entry {
+                    index: 6,
+                    value: 0.14285714285714285,
+                },
+            ],
         );
 
         let c = CSRMatrix {
@@ -348,46 +418,142 @@ mod tests {
                 major_dim: 8,
                 minor_dim: 8,
                 entries: vec![
-                    vec![Entry { index: 3, value: 1.0 }],
+                    vec![Entry {
+                        index: 3,
+                        value: 1.0,
+                    }],
                     vec![
-                        Entry { index: 0, value: 0.14285714285714285 },
-                        Entry { index: 1, value: 0.14285714285714285 },
-                        Entry { index: 2, value: 0.14285714285714285 },
-                        Entry { index: 3, value: 0.14285714285714285 },
-                        Entry { index: 4, value: 0.14285714285714285 },
-                        Entry { index: 5, value: 0.14285714285714285 },
-                        Entry { index: 6, value: 0.14285714285714285 }
+                        Entry {
+                            index: 0,
+                            value: 0.14285714285714285,
+                        },
+                        Entry {
+                            index: 1,
+                            value: 0.14285714285714285,
+                        },
+                        Entry {
+                            index: 2,
+                            value: 0.14285714285714285,
+                        },
+                        Entry {
+                            index: 3,
+                            value: 0.14285714285714285,
+                        },
+                        Entry {
+                            index: 4,
+                            value: 0.14285714285714285,
+                        },
+                        Entry {
+                            index: 5,
+                            value: 0.14285714285714285,
+                        },
+                        Entry {
+                            index: 6,
+                            value: 0.14285714285714285,
+                        },
                     ],
-                    vec![Entry { index: 3, value: 1.0 }],
+                    vec![Entry {
+                        index: 3,
+                        value: 1.0,
+                    }],
                     vec![
-                        Entry { index: 0, value: 0.14285714285714285 },
-                        Entry { index: 1, value: 0.14285714285714285 },
-                        Entry { index: 2, value: 0.14285714285714285 },
-                        Entry { index: 3, value: 0.14285714285714285 },
-                        Entry { index: 4, value: 0.14285714285714285 },
-                        Entry { index: 5, value: 0.14285714285714285 },
-                        Entry { index: 6, value: 0.14285714285714285 }
+                        Entry {
+                            index: 0,
+                            value: 0.14285714285714285,
+                        },
+                        Entry {
+                            index: 1,
+                            value: 0.14285714285714285,
+                        },
+                        Entry {
+                            index: 2,
+                            value: 0.14285714285714285,
+                        },
+                        Entry {
+                            index: 3,
+                            value: 0.14285714285714285,
+                        },
+                        Entry {
+                            index: 4,
+                            value: 0.14285714285714285,
+                        },
+                        Entry {
+                            index: 5,
+                            value: 0.14285714285714285,
+                        },
+                        Entry {
+                            index: 6,
+                            value: 0.14285714285714285,
+                        },
                     ],
-                    vec![Entry { index: 1, value: 1.0 }],
+                    vec![Entry {
+                        index: 1,
+                        value: 1.0,
+                    }],
                     vec![
-                        Entry { index: 0, value: 0.14285714285714285 },
-                        Entry { index: 1, value: 0.14285714285714285 },
-                        Entry { index: 2, value: 0.14285714285714285 },
-                        Entry { index: 3, value: 0.14285714285714285 },
-                        Entry { index: 4, value: 0.14285714285714285 },
-                        Entry { index: 5, value: 0.14285714285714285 },
-                        Entry { index: 6, value: 0.14285714285714285 }
+                        Entry {
+                            index: 0,
+                            value: 0.14285714285714285,
+                        },
+                        Entry {
+                            index: 1,
+                            value: 0.14285714285714285,
+                        },
+                        Entry {
+                            index: 2,
+                            value: 0.14285714285714285,
+                        },
+                        Entry {
+                            index: 3,
+                            value: 0.14285714285714285,
+                        },
+                        Entry {
+                            index: 4,
+                            value: 0.14285714285714285,
+                        },
+                        Entry {
+                            index: 5,
+                            value: 0.14285714285714285,
+                        },
+                        Entry {
+                            index: 6,
+                            value: 0.14285714285714285,
+                        },
                     ],
-                    vec![Entry { index: 5, value: 1.0 }],
+                    vec![Entry {
+                        index: 5,
+                        value: 1.0,
+                    }],
                     vec![
-                        Entry { index: 0, value: 0.14285714285714285 },
-                        Entry { index: 1, value: 0.14285714285714285 },
-                        Entry { index: 2, value: 0.14285714285714285 },
-                        Entry { index: 3, value: 0.14285714285714285 },
-                        Entry { index: 4, value: 0.14285714285714285 },
-                        Entry { index: 5, value: 0.14285714285714285 },
-                        Entry { index: 6, value: 0.14285714285714285 }
-                    ]
+                        Entry {
+                            index: 0,
+                            value: 0.14285714285714285,
+                        },
+                        Entry {
+                            index: 1,
+                            value: 0.14285714285714285,
+                        },
+                        Entry {
+                            index: 2,
+                            value: 0.14285714285714285,
+                        },
+                        Entry {
+                            index: 3,
+                            value: 0.14285714285714285,
+                        },
+                        Entry {
+                            index: 4,
+                            value: 0.14285714285714285,
+                        },
+                        Entry {
+                            index: 5,
+                            value: 0.14285714285714285,
+                        },
+                        Entry {
+                            index: 6,
+                            value: 0.14285714285714285,
+                        },
+                    ],
                 ],
             },
         };
@@ -395,13 +561,34 @@ mod tests {
         let expected = Vector {
             dim: 8,
             entries: vec![
-                Entry { index: 0, value: 0.11111110842697292 },
-                Entry { index: 1, value: 0.16666666867977029 },
-                Entry { index: 2, value: 0.11111110842697292 },
-                Entry { index: 3, value: 0.22222222893256766 },
-                Entry { index: 4, value: 0.11111110842697292 },
-                Entry { index: 5, value: 0.16666666867977029 },
-                Entry { index: 6, value: 0.11111110842697292 },
+                Entry {
+                    index: 0,
+                    value: 0.11111110842697292,
+                },
+                Entry {
+                    index: 1,
+                    value: 0.16666666867977029,
+                },
+                Entry {
+                    index: 2,
+                    value: 0.11111110842697292,
+                },
+                Entry {
+                    index: 3,
+                    value: 0.22222222893256766,
+                },
+                Entry {
+                    index: 4,
+                    value: 0.11111110842697292,
+                },
+                Entry {
+                    index: 5,
+                    value: 0.16666666867977029,
+                },
+                Entry {
+                    index: 6,
+                    value: 0.11111110842697292,
+                },
             ],
         };
         let result = compute(&c, &p, a, e, None, None).unwrap();

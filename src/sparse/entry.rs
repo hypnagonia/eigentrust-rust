@@ -1,8 +1,8 @@
-use wasm_bindgen::prelude::*;
-use std::cmp::Ordering;
 use serde::Serialize;
+use std::cmp::Ordering;
+use wasm_bindgen::prelude::*;
 
-#[derive(Debug, Clone, PartialEq, Serialize)] 
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Entry {
     pub index: usize,
     pub value: f64,
@@ -14,7 +14,7 @@ impl Entry {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)] 
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct CooEntry {
     pub row: usize,
     pub column: usize,
@@ -91,7 +91,11 @@ mod tests {
 
         for (name, mut entries, expected_len) in tests {
             let len = entries.len();
-            assert_eq!(len, expected_len, "{}: len = {}, want {}", name, len, expected_len);
+            assert_eq!(
+                len, expected_len,
+                "{}: len = {}, want {}",
+                name, len, expected_len
+            );
         }
     }
 
@@ -119,21 +123,71 @@ mod tests {
     #[test]
     fn test_csr_entries_sort_less() {
         let tests = vec![
-            ("xr<yr,xc<yc", CooEntry::new(0, 0, 0.0), CooEntry::new(1, 1, 0.0), true),
-            ("xr<yr,xc=yc", CooEntry::new(0, 1, 0.0), CooEntry::new(1, 1, 0.0), true),
-            ("xr<yr,xc>yc", CooEntry::new(0, 2, 0.0), CooEntry::new(1, 1, 0.0), true),
-            ("xr=yr,xc<yc", CooEntry::new(1, 0, 0.0), CooEntry::new(1, 1, 0.0), true),
-            ("xr=yr,xc=yc", CooEntry::new(1, 1, 0.0), CooEntry::new(1, 1, 0.0), false),
-            ("xr=yr,xc>yc", CooEntry::new(1, 2, 0.0), CooEntry::new(1, 1, 0.0), false),
-            ("xr>yr,xc<yc", CooEntry::new(2, 0, 0.0), CooEntry::new(1, 1, 0.0), false),
-            ("xr>yr,xc=yc", CooEntry::new(2, 1, 0.0), CooEntry::new(1, 1, 0.0), false),
-            ("xr>yr,xc>yc", CooEntry::new(2, 2, 0.0), CooEntry::new(1, 1, 0.0), false),
+            (
+                "xr<yr,xc<yc",
+                CooEntry::new(0, 0, 0.0),
+                CooEntry::new(1, 1, 0.0),
+                true,
+            ),
+            (
+                "xr<yr,xc=yc",
+                CooEntry::new(0, 1, 0.0),
+                CooEntry::new(1, 1, 0.0),
+                true,
+            ),
+            (
+                "xr<yr,xc>yc",
+                CooEntry::new(0, 2, 0.0),
+                CooEntry::new(1, 1, 0.0),
+                true,
+            ),
+            (
+                "xr=yr,xc<yc",
+                CooEntry::new(1, 0, 0.0),
+                CooEntry::new(1, 1, 0.0),
+                true,
+            ),
+            (
+                "xr=yr,xc=yc",
+                CooEntry::new(1, 1, 0.0),
+                CooEntry::new(1, 1, 0.0),
+                false,
+            ),
+            (
+                "xr=yr,xc>yc",
+                CooEntry::new(1, 2, 0.0),
+                CooEntry::new(1, 1, 0.0),
+                false,
+            ),
+            (
+                "xr>yr,xc<yc",
+                CooEntry::new(2, 0, 0.0),
+                CooEntry::new(1, 1, 0.0),
+                false,
+            ),
+            (
+                "xr>yr,xc=yc",
+                CooEntry::new(2, 1, 0.0),
+                CooEntry::new(1, 1, 0.0),
+                false,
+            ),
+            (
+                "xr>yr,xc>yc",
+                CooEntry::new(2, 2, 0.0),
+                CooEntry::new(1, 1, 0.0),
+                false,
+            ),
         ];
 
         for (name, x, y, expected) in tests {
             let entries = vec![x.clone(), y.clone()];
-            let result = entries[0].row < entries[1].row || (entries[0].row == entries[1].row && entries[0].column < entries[1].column);
-            assert_eq!(result, expected, "{}: got = {}, want {}", name, result, expected);
+            let result = entries[0].row < entries[1].row
+                || (entries[0].row == entries[1].row && entries[0].column < entries[1].column);
+            assert_eq!(
+                result, expected,
+                "{}: got = {}, want {}",
+                name, result, expected
+            );
         }
     }
 
@@ -155,7 +209,11 @@ mod tests {
 
         for (name, mut entries, expected_len) in tests {
             let len = entries.len();
-            assert_eq!(len, expected_len, "{}: len = {}, want {}", name, len, expected_len);
+            assert_eq!(
+                len, expected_len,
+                "{}: len = {}, want {}",
+                name, len, expected_len
+            );
         }
     }
 
@@ -183,21 +241,71 @@ mod tests {
     #[test]
     fn test_csc_entries_sort_less() {
         let tests = vec![
-            ("xr<yr,xc<yc", CooEntry::new(0, 0, 0.0), CooEntry::new(1, 1, 0.0), true),
-            ("xr=yr,xc<yc", CooEntry::new(1, 0, 0.0), CooEntry::new(1, 1, 0.0), true),
-            ("xr>yr,xc<yc", CooEntry::new(2, 0, 0.0), CooEntry::new(1, 1, 0.0), true),
-            ("xr<yr,xc=yc", CooEntry::new(0, 1, 0.0), CooEntry::new(1, 1, 0.0), true),
-            ("xr=yr,xc=yc", CooEntry::new(1, 1, 0.0), CooEntry::new(1, 1, 0.0), false),
-            ("xr>yr,xc=yc", CooEntry::new(2, 1, 0.0), CooEntry::new(1, 1, 0.0), false),
-            ("xr<yr,xc>yc", CooEntry::new(0, 2, 0.0), CooEntry::new(1, 1, 0.0), false),
-            ("xr=yr,xc>yc", CooEntry::new(1, 2, 0.0), CooEntry::new(1, 1, 0.0), false),
-            ("xr>yr,xc>yc", CooEntry::new(2, 2, 0.0), CooEntry::new(1, 1, 0.0), false),
+            (
+                "xr<yr,xc<yc",
+                CooEntry::new(0, 0, 0.0),
+                CooEntry::new(1, 1, 0.0),
+                true,
+            ),
+            (
+                "xr=yr,xc<yc",
+                CooEntry::new(1, 0, 0.0),
+                CooEntry::new(1, 1, 0.0),
+                true,
+            ),
+            (
+                "xr>yr,xc<yc",
+                CooEntry::new(2, 0, 0.0),
+                CooEntry::new(1, 1, 0.0),
+                true,
+            ),
+            (
+                "xr<yr,xc=yc",
+                CooEntry::new(0, 1, 0.0),
+                CooEntry::new(1, 1, 0.0),
+                true,
+            ),
+            (
+                "xr=yr,xc=yc",
+                CooEntry::new(1, 1, 0.0),
+                CooEntry::new(1, 1, 0.0),
+                false,
+            ),
+            (
+                "xr>yr,xc=yc",
+                CooEntry::new(2, 1, 0.0),
+                CooEntry::new(1, 1, 0.0),
+                false,
+            ),
+            (
+                "xr<yr,xc>yc",
+                CooEntry::new(0, 2, 0.0),
+                CooEntry::new(1, 1, 0.0),
+                false,
+            ),
+            (
+                "xr=yr,xc>yc",
+                CooEntry::new(1, 2, 0.0),
+                CooEntry::new(1, 1, 0.0),
+                false,
+            ),
+            (
+                "xr>yr,xc>yc",
+                CooEntry::new(2, 2, 0.0),
+                CooEntry::new(1, 1, 0.0),
+                false,
+            ),
         ];
 
         for (name, x, y, expected) in tests {
             let entries = vec![x.clone(), y.clone()];
-            let result = entries[0].column < entries[1].column || (entries[0].column == entries[1].column && entries[0].row < entries[1].row);
-            assert_eq!(result, expected, "{}: got = {}, want {}", name, result, expected);
+            let result = entries[0].column < entries[1].column
+                || (entries[0].column == entries[1].column && entries[0].row < entries[1].row);
+            assert_eq!(
+                result, expected,
+                "{}: got = {}, want {}",
+                name, result, expected
+            );
         }
     }
 }

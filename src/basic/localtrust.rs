@@ -1,17 +1,16 @@
-use wasm_bindgen::prelude::*;
-use crate::sparse::matrix::CSRMatrix;
 use crate::sparse::entry::Entry;
+use crate::sparse::matrix::CSRMatrix;
 use crate::sparse::vector::Vector;
+use wasm_bindgen::prelude::*;
 
 use std::collections::HashMap;
-
 
 pub fn canonicalize_local_trust(
     local_trust: &mut CSRMatrix,
     pre_trust: Option<Vec<Entry>>,
 ) -> Result<(), String> {
     let n = local_trust.dims().0;
-    
+
     if let Some(ref pre_trust_vec) = pre_trust {
         if pre_trust_vec.len() != n {
             return Err("Dimension mismatch".to_string());
@@ -21,7 +20,7 @@ pub fn canonicalize_local_trust(
     for i in 0..n {
         let mut in_row = local_trust.row_vector(i);
         let row_sum: f64 = in_row.entries.iter().map(|entry| entry.value).sum();
-        
+
         if row_sum == 0.0 {
             if let Some(ref pre_trust_vec) = pre_trust {
                 local_trust.set_row_vector(i, Vector::new(n, pre_trust_vec.clone()));
@@ -38,9 +37,7 @@ pub fn canonicalize_local_trust(
 }
 
 // ExtractDistrust function in Rust
-pub fn extract_distrust(
-    local_trust: &mut CSRMatrix,
-) -> Result<CSRMatrix, String> {
+pub fn extract_distrust(local_trust: &mut CSRMatrix) -> Result<CSRMatrix, String> {
     let n = local_trust.dims().0;
     let mut distrust = CSRMatrix::new(n, n, vec![]);
 
@@ -68,16 +65,25 @@ pub fn extract_distrust(
 }
 
 // Helper function to parse CSV data (assuming a simple CSV reader implementation)
-fn parse_csv_line(line: &str, peer_indices: &HashMap<String, usize>) -> Result<(usize, usize, f64), String> {
+fn parse_csv_line(
+    line: &str,
+    peer_indices: &HashMap<String, usize>,
+) -> Result<(usize, usize, f64), String> {
     let fields: Vec<&str> = line.split(',').collect();
 
     if fields.len() < 2 {
         return Err("Too few fields".to_string());
     }
-    let from = *peer_indices.get(fields[0]).ok_or_else(|| ("Invalid from field"))?;
-    let to = *peer_indices.get(fields[1]).ok_or_else(|| ("Invalid to field"))?;
+    let from = *peer_indices
+        .get(fields[0])
+        .ok_or_else(|| ("Invalid from field"))?;
+    let to = *peer_indices
+        .get(fields[1])
+        .ok_or_else(|| ("Invalid to field"))?;
     let level = if fields.len() >= 3 {
-        fields[2].parse::<f64>().map_err(|_| ("Invalid trust level"))?
+        fields[2]
+            .parse::<f64>()
+            .map_err(|_| ("Invalid trust level"))?
     } else {
         1.0
     };
@@ -132,37 +138,20 @@ mod tests {
             expected_distrust: CSRMatrix,
         }
 
-        let test_cases = vec![
-            TestCase {
-                name: "test1",
-                local_trust: CSRMatrix::new(
-                    3,
-                    3,
-                    vec![
-                        (0, 0, 100.0),
-                        (0, 1, -50.0),
-                        (0, 2, -50.0),
-                        (2, 0, -100.0),
-                    ],
-                ),
-                expected_trust: CSRMatrix::new(
-                    3,
-                    3,
-                    vec![
-                        (0, 0, 100.0),
-                    ],
-                ),
-                expected_distrust: CSRMatrix::new(
-                    3,
-                    3,
-                    vec![
-                        (0, 1, 50.0),
-                        (0, 2, 50.0),
-                        (2, 0, 100.0),
-                    ],
-                ),
-            },
-        ];
+        let test_cases = vec![TestCase {
+            name: "test1",
+            local_trust: CSRMatrix::new(
+                3,
+                3,
+                vec![(0, 0, 100.0), (0, 1, -50.0), (0, 2, -50.0), (2, 0, -100.0)],
+            ),
+            expected_trust: CSRMatrix::new(3, 3, vec![(0, 0, 100.0)]),
+            expected_distrust: CSRMatrix::new(
+                3,
+                3,
+                vec![(0, 1, 50.0), (0, 2, 50.0), (2, 0, 100.0)],
+            ),
+        }];
 
         for test in test_cases {
             let mut local_trust = test.local_trust.clone();

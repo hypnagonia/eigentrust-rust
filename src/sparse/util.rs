@@ -1,5 +1,5 @@
-use std::ops::Add;
 use std::cmp::Ordering;
+use std::ops::Add;
 
 pub fn nil_if_empty<T>(slice: Vec<T>) -> Option<Vec<T>> {
     if slice.is_empty() {
@@ -52,7 +52,6 @@ impl KBNSummer {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -76,8 +75,14 @@ mod tests {
         let negative = |&x: &i32| x < 0;
         let zero = |&x: &i32| x == 0;
 
-        assert_eq!(filter(slice.clone(), positive), vec![3, 1, 5, 9, 5, 3, 9, 7]);
-        assert_eq!(filter(slice.clone(), negative), vec![-4, -1, -2, -6, -5, -8]);
+        assert_eq!(
+            filter(slice.clone(), positive),
+            vec![3, 1, 5, 9, 5, 3, 9, 7]
+        );
+        assert_eq!(
+            filter(slice.clone(), negative),
+            vec![-4, -1, -2, -6, -5, -8]
+        );
         assert_eq!(filter(slice.clone(), zero), vec![] as Vec<i32>);
     }
 }

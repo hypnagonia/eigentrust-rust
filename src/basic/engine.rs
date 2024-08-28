@@ -1,12 +1,12 @@
-use wasm_bindgen::prelude::*;
-use crate::basic::localtrust::{ canonicalize_local_trust, read_local_trust_from_csv };
-use crate::basic::trustvector::{ read_trust_vector_from_csv };
-use crate::basic::eigentrust::{ compute };
-use crate::sparse::entry::{ Entry };
-use crate::sparse::vector::{ Vector };
-use crate::sparse::matrix::{ CSRMatrix, CSMatrix };
-use std::collections::HashMap;
+use crate::basic::eigentrust::compute;
+use crate::basic::localtrust::{canonicalize_local_trust, read_local_trust_from_csv};
+use crate::basic::trustvector::read_trust_vector_from_csv;
+use crate::sparse::entry::Entry;
+use crate::sparse::matrix::{CSMatrix, CSRMatrix};
+use crate::sparse::vector::Vector;
 use getrandom::getrandom;
+use std::collections::HashMap;
+use wasm_bindgen::prelude::*;
 
 fn generate_random_f64(min: f64, max: f64) -> f64 {
     let mut buf = [0u8; 8];
@@ -63,46 +63,142 @@ pub fn calculate() -> Result<Vector, String> {
             major_dim: 8,
             minor_dim: 8,
             entries: vec![
-                vec![Entry { index: 3, value: 1.0 }],
+                vec![Entry {
+                    index: 3,
+                    value: 1.0,
+                }],
                 vec![
-                    Entry { index: 0, value: 0.14285714285714285 },
-                    Entry { index: 1, value: 0.14285714285714285 },
-                    Entry { index: 2, value: 0.14285714285714285 },
-                    Entry { index: 3, value: 0.14285714285714285 },
-                    Entry { index: 4, value: 0.14285714285714285 },
-                    Entry { index: 5, value: 0.14285714285714285 },
-                    Entry { index: 6, value: 0.14285714285714285 }
+                    Entry {
+                        index: 0,
+                        value: 0.14285714285714285,
+                    },
+                    Entry {
+                        index: 1,
+                        value: 0.14285714285714285,
+                    },
+                    Entry {
+                        index: 2,
+                        value: 0.14285714285714285,
+                    },
+                    Entry {
+                        index: 3,
+                        value: 0.14285714285714285,
+                    },
+                    Entry {
+                        index: 4,
+                        value: 0.14285714285714285,
+                    },
+                    Entry {
+                        index: 5,
+                        value: 0.14285714285714285,
+                    },
+                    Entry {
+                        index: 6,
+                        value: 0.14285714285714285,
+                    },
                 ],
-                vec![Entry { index: 3, value: 1.0 }],
+                vec![Entry {
+                    index: 3,
+                    value: 1.0,
+                }],
                 vec![
-                    Entry { index: 0, value: 0.14285714285714285 },
-                    Entry { index: 1, value: 0.14285714285714285 },
-                    Entry { index: 2, value: 0.14285714285714285 },
-                    Entry { index: 3, value: 0.14285714285714285 },
-                    Entry { index: 4, value: 0.14285714285714285 },
-                    Entry { index: 5, value: 0.14285714285714285 },
-                    Entry { index: 6, value: 0.14285714285714285 }
+                    Entry {
+                        index: 0,
+                        value: 0.14285714285714285,
+                    },
+                    Entry {
+                        index: 1,
+                        value: 0.14285714285714285,
+                    },
+                    Entry {
+                        index: 2,
+                        value: 0.14285714285714285,
+                    },
+                    Entry {
+                        index: 3,
+                        value: 0.14285714285714285,
+                    },
+                    Entry {
+                        index: 4,
+                        value: 0.14285714285714285,
+                    },
+                    Entry {
+                        index: 5,
+                        value: 0.14285714285714285,
+                    },
+                    Entry {
+                        index: 6,
+                        value: 0.14285714285714285,
+                    },
                 ],
-                vec![Entry { index: 1, value: 1.0 }],
+                vec![Entry {
+                    index: 1,
+                    value: 1.0,
+                }],
                 vec![
-                    Entry { index: 0, value: 0.14285714285714285 },
-                    Entry { index: 1, value: 0.14285714285714285 },
-                    Entry { index: 2, value: 0.14285714285714285 },
-                    Entry { index: 3, value: 0.14285714285714285 },
-                    Entry { index: 4, value: 0.14285714285714285 },
-                    Entry { index: 5, value: 0.14285714285714285 },
-                    Entry { index: 6, value: 0.14285714285714285 }
+                    Entry {
+                        index: 0,
+                        value: 0.14285714285714285,
+                    },
+                    Entry {
+                        index: 1,
+                        value: 0.14285714285714285,
+                    },
+                    Entry {
+                        index: 2,
+                        value: 0.14285714285714285,
+                    },
+                    Entry {
+                        index: 3,
+                        value: 0.14285714285714285,
+                    },
+                    Entry {
+                        index: 4,
+                        value: 0.14285714285714285,
+                    },
+                    Entry {
+                        index: 5,
+                        value: 0.14285714285714285,
+                    },
+                    Entry {
+                        index: 6,
+                        value: 0.14285714285714285,
+                    },
                 ],
-                vec![Entry { index: 5, value: 1.0 }],
+                vec![Entry {
+                    index: 5,
+                    value: 1.0,
+                }],
                 vec![
-                    Entry { index: 0, value: 0.14285714285714285 },
-                    Entry { index: 1, value: 0.14285714285714285 },
-                    Entry { index: 2, value: 0.14285714285714285 },
-                    Entry { index: 3, value: 0.14285714285714285 },
-                    Entry { index: 4, value: 0.14285714285714285 },
-                    Entry { index: 5, value: 0.14285714285714285 },
-                    Entry { index: 6, value: 0.14285714285714285 }
-                ]
+                    Entry {
+                        index: 0,
+                        value: 0.14285714285714285,
+                    },
+                    Entry {
+                        index: 1,
+                        value: 0.14285714285714285,
+                    },
+                    Entry {
+                        index: 2,
+                        value: 0.14285714285714285,
+                    },
+                    Entry {
+                        index: 3,
+                        value: 0.14285714285714285,
+                    },
+                    Entry {
+                        index: 4,
+                        value: 0.14285714285714285,
+                    },
+                    Entry {
+                        index: 5,
+                        value: 0.14285714285714285,
+                    },
+                    Entry {
+                        index: 6,
+                        value: 0.14285714285714285,
+                    },
+                ],
             ],
         },
     };
@@ -110,14 +206,35 @@ pub fn calculate() -> Result<Vector, String> {
     let p = Vector::new(
         8,
         vec![
-            Entry { index: 0, value: 0.14285714285714285 },
-            Entry { index: 1, value: 0.14285714285714285 },
-            Entry { index: 2, value: 0.14285714285714285 },
-            Entry { index: 3, value: 0.14285714285714285 },
-            Entry { index: 4, value: 0.14285714285714285 },
-            Entry { index: 5, value: 0.14285714285714285 },
-            Entry { index: 6, value: 0.14285714285714285 }
-        ]
+            Entry {
+                index: 0,
+                value: 0.14285714285714285,
+            },
+            Entry {
+                index: 1,
+                value: 0.14285714285714285,
+            },
+            Entry {
+                index: 2,
+                value: 0.14285714285714285,
+            },
+            Entry {
+                index: 3,
+                value: 0.14285714285714285,
+            },
+            Entry {
+                index: 4,
+                value: 0.14285714285714285,
+            },
+            Entry {
+                index: 5,
+                value: 0.14285714285714285,
+            },
+            Entry {
+                index: 6,
+                value: 0.14285714285714285,
+            },
+        ],
     );
 
     let result = compute(&c, &p, a, e, None, None);
@@ -130,6 +247,5 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_run() {
-    }
+    fn test_run() {}
 }

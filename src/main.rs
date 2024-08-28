@@ -1,17 +1,17 @@
 use wasm_bindgen::prelude::*;
 
-use crate::basic::localtrust::{ canonicalize_local_trust };
-use crate::basic::eigentrust::{ compute };
-use crate::sparse::entry::{ Entry };
-use crate::sparse::vector::{ Vector };
-use crate::sparse::matrix::{ CSRMatrix, CSMatrix };
+use crate::basic::eigentrust::compute;
+use crate::basic::localtrust::canonicalize_local_trust;
+use crate::sparse::entry::Entry;
+use crate::sparse::matrix::{CSMatrix, CSRMatrix};
+use crate::sparse::vector::Vector;
 
 use crate::basic::engine::calculate;
 
-pub mod sparse;
 pub mod basic;
-use web_sys::console;
+pub mod sparse;
 use std::panic;
+use web_sys::console;
 
 fn main() {
     let result = calculate();
