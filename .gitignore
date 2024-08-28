@@ -1,4 +1,4 @@
 /target
 *.bak
- .firebase
- .firebase/*
+.firebase
+.firebase/*
