@@ -80,6 +80,6 @@ mod tests {
 
         assert_eq!(filter(slice.clone(), positive), vec![3, 1, 5, 9, 5, 3, 9, 7]);
         assert_eq!(filter(slice.clone(), negative), vec![-4, -1, -2, -6, -5, -8]);
-        assert_eq!(filter(slice.clone(), zero), vec![]);
+        assert_eq!(filter(slice.clone(), zero), vec![] as Vec<i32>);
     }
 }

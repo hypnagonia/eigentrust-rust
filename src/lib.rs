@@ -10,10 +10,16 @@ use crate::basic::compute::run_compute;
 
 pub mod sparse;
 pub mod basic;
+use web_sys::console;
+use std::panic;
 
 #[wasm_bindgen]
 pub fn run(left: u64, right: u64) -> u64 {
-    // let result = run_compute();
+    panic::set_hook(Box::new(console_error_panic_hook::hook));
+    
+    let result = run_compute();
+    //let json = serde_json::to_string(&result).unwrap();
+    console::log_1(&"Hello from Rust!".into());
 
-    1
+    666
 }

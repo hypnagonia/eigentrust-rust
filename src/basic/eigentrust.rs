@@ -53,7 +53,6 @@ impl ConvergenceChecker {
 
     // Returns true if the last updated vector has converged.
     pub fn converged(&self) -> bool {
-        println!("is converded {:?}", self.d <= self.e);
         self.d <= self.e
     }
 
@@ -152,36 +151,50 @@ pub fn compute(
     let min_iters = min_iterations.unwrap_or(1);
 
     while iter < max_iters {
+        println!("iter {:?} {:?}\n", iter, flat_tail_checker.reached());
 
-        println!("--------\n");
-        println!("iter {:?}", iter);
-        println!("t1 pre {:?}", t1);
-
+        // todo check freq
+        // todo flat tail
         if iter >= min_iters 
             && conv_checker.update(&t1).is_ok() 
             && conv_checker.converged() 
             && flat_tail_checker.reached() {
             break;
         }
-
-        println!("t1 {:?}\n", t1);
         
-        // Avoid simultaneous borrow by using a clone for the operation
+        //
+        if iter >= min_iters 
+            && conv_checker.converged() {
+            // && flat_tail_checker.reached() {
+            break;
+        }   
+
+        // println!("t1 {:?}\n", t1);
+        
         let t1_clone = t1.clone();
         let mut new_t1 = t1.clone();
-        new_t1.mul_vec(&ct, &t1_clone)?; // Perform the matrix-vector multiplication
+        new_t1.mul_vec(&ct, &t1_clone)?; 
 
-        println!("t1 mul_vec{:?}\n", new_t1);
+        // println!("t1 mul_vec{:?}\n", new_t1);
 
         let t2_clone = new_t1.clone();
-        new_t1.scale_vec(1.0 - a, &t2_clone); // Scale the vector
+        new_t1.scale_vec(1.0 - a, &t2_clone); 
 
-        println!("t1 scale_vec{:?}\n", new_t1);
+        // println!("t1 scale_vec{:?}\n", new_t1);
 
         // Add vectors
         t1.add_vec(&new_t1, &ap)?;
 
-        println!("t1 add_vec{:?}\n", t1);
+        //println!("t1 add_vec{:?}\n", t1);
+
+        println!(
+            "finished: dim = {}, nnz = {}, alpha = {}, epsilon = {}, iterations = {}",
+            n,
+            ct.cs_matrix.nnz(),
+            a,
+            e,
+            iter,
+        );
 
           iter += 1;
     }

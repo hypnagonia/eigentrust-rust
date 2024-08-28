@@ -3,11 +3,12 @@ use std::f64;
 use std::sync::{ Arc, Mutex };
 use std::thread;
 use wasm_bindgen::prelude::*;
+use serde::Serialize;
 
 use super::entry::{Entry, CooEntry};
 use super::matrix::{CSRMatrix};
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize)]
 pub struct Vector {
     pub dim: usize,
     pub entries: Vec<Entry>,

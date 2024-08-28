@@ -1,8 +1,9 @@
 use wasm_bindgen::prelude::*;
 use std::cmp::Ordering;
+use serde::Serialize;
 
 // Define the Entry struct
-#[derive(Debug, Clone, PartialEq)] 
+#[derive(Debug, Clone, PartialEq, Serialize)] 
 pub struct Entry {
     pub index: usize,
     pub value: f64,
@@ -15,7 +16,7 @@ impl Entry {
 }
 
 // Define the CooEntry struct
-#[derive(Debug, Clone, PartialEq)] 
+#[derive(Debug, Clone, PartialEq, Serialize)] 
 pub struct CooEntry {
     pub row: usize,
     pub column: usize,

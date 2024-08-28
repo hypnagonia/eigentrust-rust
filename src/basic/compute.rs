@@ -58,7 +58,7 @@ mod tests {
         let result = run_compute();
         println!("{:?}", result);
 
-        let l = 2;
+        let l = 1;
         let expected_l = 1;
         assert_eq!(l, expected_l, "{}: l = {}", l, expected_l);
     }

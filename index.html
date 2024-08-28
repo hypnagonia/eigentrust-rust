@@ -6,8 +6,8 @@
     <title>Rust WebAssembly Example</title>
 </head>
 <body>
-    <h1>Rust WebAssembly 2 + 2 Example</h1>
-    <button id="calculate">Calculate 2 + 2</button>
+    <h1>Rust WebAssembly EigenTrust</h1>
+    <button id="calculate">Run Job</button>
     <p>Result: <span id="result"></span></p>
 
     <script type="module">
@@ -16,8 +16,10 @@
         async function main() {
             await init()
 
+            console.log(run)
             document.getElementById('calculate').addEventListener('click', () => {
                 const result = run(BigInt(2), BigInt(2))
+                console.log({result})
                 document.getElementById('result').textContent = result
             })
         }
