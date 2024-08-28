@@ -197,8 +197,6 @@ impl Vector {
     }
 
     pub fn scale_vec(&mut self, a: f64, v1: &Vector) {
-        // println!("!!! scale vec {:?} {:?}", a, v1);
-
         if a == 0.0 {
             self.dim = v1.dim;
             self.entries.clear();
@@ -217,7 +215,6 @@ impl Vector {
             return;
         }
     
-        // First pass: Scale the values and count zeros
         let mut non_zero_entries = Vec::with_capacity(self.entries.len());
         for entry in &mut self.entries {
             entry.value *= a;
@@ -226,7 +223,6 @@ impl Vector {
             }
         }
     
-        // Update the entries with non-zero values
         self.entries = non_zero_entries;
     }
 
@@ -242,6 +238,7 @@ impl Vector {
         self.entries.sort_by_key(|e| e.index);
     }
 
+    // single-threaded 
     pub fn mul_vec(&mut self, m: &CSRMatrix, v1: &Vector) -> Result<(), String> {
         let dim = m.cs_matrix.dim()?;
         if dim != v1.dim {
@@ -289,18 +286,9 @@ impl Vector {
                     let mut jobs = jobs.lock().unwrap();
                     jobs.pop()
                 } {
-                    // Compute the dot product for the current row.
-
-                    //println!("pre product {:?}\n ",row);
-                    //println!("pre product M {:?} {:?}\n ",row, &m_cloned.row_vector(row));
-                    //println!("pre product V1 {:?} {:?}\n ",row, v1_cloned);
-                    
-                    let product = vec_dot(&m_cloned.row_vector(row), &v1_cloned);
-                    //println!("push product {:?} {:?}\n",row, product);
-
+                    let product = vec_dot(&m_cloned.row_vector(row), &v1_cloned);            
                     let mut entries = entries.lock().unwrap();
                     if product != 0.0 {
-
                         entries.push(Entry { index: row, value: product });
                     }
                 }

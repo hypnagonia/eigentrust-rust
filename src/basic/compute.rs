@@ -38,43 +38,92 @@ pub fn run_compute() -> Result<Vector, String> {
     let e = 1.25e-7;
     let a = 0.5;
 
-    let (csv_data, peer_indices) = generate_csv_data(1000_000);
+    // let (csv_data, peer_indices) = generate_csv_data(1000_000);
+
+    let csv_data = "0,1,11.31571\n2,3,269916.08616\n4,5,3173339.366896588\n6,5,46589750.00759474\n";
+    let mut peer_indices = HashMap::new();
+
+    for (index, line) in csv_data.lines().enumerate() {
+        let mut fields = line.split(',');
+
+        if let (Some(from), Some(to)) = (fields.next(), fields.next()) {
+            peer_indices.entry(from.to_string()).or_insert(index);
+            peer_indices.entry(to.to_string()).or_insert(index);
+        }
+    }
     let peer_indices2 = peer_indices.clone();
 
     let c2 = read_local_trust_from_csv(&csv_data, peer_indices).unwrap();
     let p2 = read_trust_vector_from_csv(&csv_data, &peer_indices2).unwrap();
 
+    println!("{:?}\n {:?}\n", c2, p2);
+
     let c = CSRMatrix {
         cs_matrix: CSMatrix {
-            major_dim: 4,
-            minor_dim: 4,
+            major_dim: 8,
+            minor_dim: 8,
             entries: vec![
+                vec![
+                    Entry { index: 3, value: 1.0 },
+                ],
+                vec![
+                    Entry { index: 0, value: 0.14285714285714285 },
+                    Entry { index: 1, value: 0.14285714285714285 },
+                    Entry { index: 2, value: 0.14285714285714285 },
+                    Entry { index: 3, value: 0.14285714285714285 },
+                    Entry { index: 4, value: 0.14285714285714285 },
+                    Entry { index: 5, value: 0.14285714285714285 },
+                    Entry { index: 6, value: 0.14285714285714285 },
+
+                ],
+                vec![
+                    Entry { index: 3, value: 1.0 },
+                ],
+                vec![
+                    Entry { index: 0, value: 0.14285714285714285 },
+                    Entry { index: 1, value: 0.14285714285714285 },
+                    Entry { index: 2, value: 0.14285714285714285 },
+                    Entry { index: 3, value: 0.14285714285714285 },
+                    Entry { index: 4, value: 0.14285714285714285 },
+                    Entry { index: 5, value: 0.14285714285714285 },
+                    Entry { index: 6, value: 0.14285714285714285 },
+                ],
                 vec![
                     Entry { index: 1, value: 1.0 },
                 ],
                 vec![
-                    Entry { index: 2, value: 1.0 },
+                    Entry { index: 0, value: 0.14285714285714285 },
+                    Entry { index: 1, value: 0.14285714285714285 },
+                    Entry { index: 2, value: 0.14285714285714285 },
+                    Entry { index: 3, value: 0.14285714285714285 },
+                    Entry { index: 4, value: 0.14285714285714285 },
+                    Entry { index: 5, value: 0.14285714285714285 },
+                    Entry { index: 6, value: 0.14285714285714285 },
                 ],
                 vec![
-                    Entry { index: 0, value: 0.3333333333333333 },
-                    Entry { index: 1, value: 0.3333333333333333 },
-                    Entry { index: 2, value: 0.3333333333333333 },
-
+                    Entry { index: 5, value: 1.0 },
                 ],
                 vec![
-                    Entry { index: 0, value: 0.3333333333333333 },
-                    Entry { index: 1, value: 0.3333333333333333 },
-                    Entry { index: 2, value: 0.3333333333333333 },
-
+                    Entry { index: 0, value: 0.14285714285714285 },
+                    Entry { index: 1, value: 0.14285714285714285 },
+                    Entry { index: 2, value: 0.14285714285714285 },
+                    Entry { index: 3, value: 0.14285714285714285 },
+                    Entry { index: 4, value: 0.14285714285714285 },
+                    Entry { index: 5, value: 0.14285714285714285 },
+                    Entry { index: 6, value: 0.14285714285714285 },
                 ],
             ],
         },
     };
 
-    let p = Vector::new(4, vec![
-        Entry { index: 0, value: 0.3333333333333333 },
-        Entry { index: 1, value: 0.3333333333333333 },
-        Entry { index: 2, value: 0.3333333333333333 },
+    let p = Vector::new(8, vec![
+        Entry { index: 0, value: 0.14285714285714285 },
+        Entry { index: 1, value: 0.14285714285714285 },
+        Entry { index: 2, value: 0.14285714285714285 },
+        Entry { index: 3, value: 0.14285714285714285 },
+        Entry { index: 4, value: 0.14285714285714285 },
+        Entry { index: 5, value: 0.14285714285714285 },
+        Entry { index: 6, value: 0.14285714285714285 },
     ]);
 
     let result = compute(&c, &p, a, e, None, None);
