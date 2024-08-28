@@ -7,6 +7,19 @@
 </head>
 <body>
     <h1>Rust WebAssembly EigenTrust</h1>
+    <p>Inputs</p>
+    <pre>
+        ijv = [{
+            'i': 'a',
+            'j': 'b',
+            'v': 1
+        }, {
+            'i': 'b',
+            'j': 'c',
+            'v': 2
+        }]
+    </pre>
+
     <button id="calculate">Run Job</button>
     <p>Result: <span id="result"></span></p>
 
@@ -18,7 +31,9 @@
 
             console.log(run)
             document.getElementById('calculate').addEventListener('click', () => {
+                console.time("eigentrust job")
                 const result = run(BigInt(2), BigInt(2))
+                console.timeEnd("eigentrust job")
                 console.log({result})
                 document.getElementById('result').textContent = result
             })
