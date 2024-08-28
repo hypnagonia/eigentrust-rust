@@ -5,8 +5,6 @@ use std::sync::{Arc, Mutex};
 use super::entry::{CooEntry, Entry};
 use super::matrix::CSRMatrix;
 use serde::Serialize;
-use wasm_bindgen::prelude::*;
-
 use std::thread;
 use wasm_bindgen_futures::spawn_local;
 
@@ -269,9 +267,9 @@ impl Vector {
         let jobs = Arc::new(Mutex::new((0..dim).collect::<Vec<usize>>()));
         let entries = Arc::new(Mutex::new(Vec::with_capacity(dim)));
         let mut handles = vec![];
-        let numWorkers = 32;
+        let num_workers = 32;
 
-        for workerIndex in 0..numWorkers {
+        for worker_index in 0..num_workers {
             let jobs = Arc::clone(&jobs);
             let entries = Arc::clone(&entries);
             let m_cloned = m.clone();
