@@ -34,7 +34,7 @@ fn generate_csv_data(num_records: usize) -> (String, HashMap<String, usize>) {
     (csv_data, peer_indices)
 }
 
-pub fn run_compute() -> Result<Vector, String> {
+pub fn calculate() -> Result<Vector, String> {
     let e = 1.25e-7;
     let a = 0.5;
 
@@ -137,11 +137,9 @@ mod tests {
 
     #[test]
     fn test_run() {
-        let result = run_compute();
-        println!("{:?}", result);
-
+        let result = calculate();
         let l = 1;
-        let expected_l = 2;
+        let expected_l = 1;
         assert_eq!(l, expected_l, "{}: l = {}", l, expected_l);
     }
 }

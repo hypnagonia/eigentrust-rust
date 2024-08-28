@@ -6,6 +6,7 @@ use std::cmp;
 use crate::sparse::entry::{Entry};
 use crate::sparse::matrix::{CSRMatrix, CSMatrix};
 use crate::sparse::vector::{Vector};
+
 use web_sys::console;
 
 // Canonicalize scales sparse entries in-place so that their values sum to one.

@@ -9,6 +9,16 @@ cargo test
 ## build WASM
 ```
 wasm-pack build --target web
+
+python3 -m http.server
+
+http://localhost:8000/index.html
+```
+
+
+## run binary main.rs
+```
+./target/release/eigentrust-js
 ```
 
 ## test web??
