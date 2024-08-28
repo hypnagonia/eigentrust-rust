@@ -246,3 +246,144 @@ pub fn transpose_to_csc(matrix: &CSRMatrix) -> CSCMatrix {
     matrix.transpose_to_csc()
 }
 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cs_matrix_transpose() {
+        let original = CSMatrix {
+            major_dim: 5,
+            minor_dim: 4,
+            entries: vec![
+                vec![
+                    Entry { index: 0, value: 100.0 },
+                    Entry { index: 1, value: 200.0 },
+                    Entry { index: 2, value: 300.0 }
+                ],
+                vec![Entry { index: 1, value: 400.0 }, Entry { index: 3, value: 500.0 }],
+                vec![],
+                vec![
+                    Entry { index: 0, value: 600.0 },
+                    Entry { index: 1, value: 700.0 },
+                    Entry { index: 2, value: 800.0 },
+                    Entry { index: 3, value: 900.0 }
+                ],
+                vec![Entry { index: 2, value: 1000.0 }]
+            ],
+        };
+
+        let transposed = CSMatrix {
+            major_dim: 4,
+            minor_dim: 5,
+            entries: vec![
+                vec![Entry { index: 0, value: 100.0 }, Entry { index: 3, value: 600.0 }],
+                vec![
+                    Entry { index: 0, value: 200.0 },
+                    Entry { index: 1, value: 400.0 },
+                    Entry { index: 3, value: 700.0 }
+                ],
+                vec![
+                    Entry { index: 0, value: 300.0 },
+                    Entry { index: 3, value: 800.0 },
+                    Entry { index: 4, value: 1000.0 }
+                ],
+                vec![Entry { index: 1, value: 500.0 }, Entry { index: 3, value: 900.0 }]
+            ],
+        };
+
+        let result = original.transpose().unwrap();
+        assert_eq!(result, transposed);
+
+        let double_transpose = result.transpose().unwrap();
+        assert_eq!(double_transpose, original);
+    }
+
+    #[test]
+    fn test_cs_matrix_merge() {
+        let mut m = CSMatrix {
+            major_dim: 3,
+            minor_dim: 3,
+            entries: vec![
+                vec![],
+                vec![Entry { index: 2, value: 5.0 }],
+                vec![Entry { index: 1, value: 5.0 }, Entry { index: 2, value: 5.0 }]
+            ],
+        };
+
+        let mut m2 = CSMatrix {
+            major_dim: 4,
+            minor_dim: 4,
+            entries: vec![
+                vec![Entry { index: 0, value: 8.0 }, Entry { index: 2, value: 8.0 }],
+                vec![Entry { index: 0, value: 8.0 }],
+                vec![Entry { index: 1, value: 8.0 }, Entry { index: 3, value: 8.0 }],
+                vec![Entry { index: 1, value: 8.0 }, Entry { index: 2, value: 8.0 }]
+            ],
+        };
+
+        let merged = CSMatrix {
+            major_dim: 4,
+            minor_dim: 4,
+            entries: vec![
+                vec![Entry { index: 0, value: 8.0 }, Entry { index: 2, value: 8.0 }],
+                vec![Entry { index: 0, value: 8.0 }, Entry { index: 2, value: 5.0 }],
+                vec![
+                    Entry { index: 1, value: 8.0 },
+                    Entry { index: 2, value: 5.0 },
+                    Entry { index: 3, value: 8.0 }
+                ],
+                vec![Entry { index: 1, value: 8.0 }, Entry { index: 2, value: 8.0 }]
+            ],
+        };
+
+        m.merge(&mut m2);
+        assert_eq!(m, merged);
+    }
+
+    #[test]
+    fn test_new_csr_matrix() {
+        let entries = vec![
+            (0, 0, 100.0),
+            (3, 0, 600.0),
+            (3, 1, 700.0),
+            (1, 1, 400.0),
+            (0, 1, 200.0),
+            (2, 1, 0.0), // zero value should be dropped
+            (1, 3, 500.0),
+            (3, 3, 900.0),
+            (4, 2, 1000.0),
+            (0, 2, 300.0),
+            (3, 2, 800.0)
+        ];
+
+        let expected = CSRMatrix {
+            cs_matrix: CSMatrix {
+                major_dim: 5,
+                minor_dim: 4,
+                entries: vec![
+                    vec![
+                        Entry { index: 0, value: 100.0 },
+                        Entry { index: 1, value: 200.0 },
+                        Entry { index: 2, value: 300.0 }
+                    ],
+                    vec![Entry { index: 1, value: 400.0 }, Entry { index: 3, value: 500.0 }],
+                    vec![],
+                    vec![
+                        Entry { index: 0, value: 600.0 },
+                        Entry { index: 1, value: 700.0 },
+                        Entry { index: 2, value: 800.0 },
+                        Entry { index: 3, value: 900.0 }
+                    ],
+                    vec![Entry { index: 2, value: 1000.0 }]
+                ],
+            },
+        };
+
+        let result = CSRMatrix::new(5, 4, entries);
+        assert_eq!(result, expected);
+    }
+     
+}
+

@@ -11,18 +11,18 @@
     <p>Result: <span id="result"></span></p>
 
     <script type="module">
-        import init, { add } from './pkg/eigentrust_js.js'
-        console.log(add)
-        async function run() {
+        import init, { run } from './pkg/eigentrust_js.js'
+        
+        async function main() {
             await init()
 
             document.getElementById('calculate').addEventListener('click', () => {
-                const result = add(BigInt(2), BigInt(2))
+                const result = run(BigInt(2), BigInt(2))
                 document.getElementById('result').textContent = result
             })
         }
 
-        run()
+        main()
     </script>
 </body>
 </html>

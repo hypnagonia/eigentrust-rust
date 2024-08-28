@@ -117,7 +117,6 @@ pub struct FlatTailStats {
 
 // Compute function implements the EigenTrust algorithm.
 pub fn compute(
-    ctx: &JsValue,
     c: &CSRMatrix,
     p: &Vector,
     a: f64,
