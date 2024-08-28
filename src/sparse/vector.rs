@@ -4,25 +4,13 @@ use std::sync::{ Arc, Mutex };
 use std::thread;
 use wasm_bindgen::prelude::*;
 
-#[derive(PartialEq, Debug)]
-pub struct Entry {
-    pub index: usize,
-    pub value: f64,
-}
-
-impl Clone for Entry {
-    fn clone(&self) -> Self {
-        Self {
-            index: self.index,
-            value: self.value,
-        }
-    }
-}
+use super::entry::{Entry, CooEntry};
+use super::matrix::{CSRMatrix};
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct Vector {
-    dim: usize,
-    entries: Vec<Entry>,
+    pub dim: usize,
+    pub entries: Vec<Entry>,
 }
 
 impl Vector {
@@ -245,27 +233,9 @@ pub fn vec_dot(v1: &Vector, v2: &Vector) -> f64 {
     sum
 }
 
-#[derive(Clone, PartialEq, Debug)]
-pub struct Matrix {
-    // Matrix fields and methods should be implemented here.
-    // Placeholder for the matrix implementation.
-}
-
-impl Matrix {
-    fn dim(&self) -> Result<usize, String> {
-        // Implement matrix dimension logic here.
-        Ok(0) // Placeholder
-    }
-
-    fn row_vector(&self, row: usize) -> Vector {
-        // Implement row vector extraction logic here.
-        Vector::new(0, Vec::new()) // Placeholder
-    }
-}
-
 // todo
-pub fn mul_vec(ctx: JsValue, m: Matrix, v1: Vector) -> Result<Vector, String> {
-    let dim = m.dim()?; // Get the dimension of the matrix.
+pub fn mul_vec(m: &CSRMatrix, v1: &Vector) -> Result<Vector, String> {
+    let dim = m.cs_matrix.dim()?; // Get the dimension of the matrix.
     if dim != v1.dim {
         return Err("Dimension mismatch".to_string());
     }
@@ -308,4 +278,134 @@ pub fn mul_vec(ctx: JsValue, m: Matrix, v1: Vector) -> Result<Vector, String> {
     sorted_entries.sort_by_key(|e| e.index);
 
     Ok(Vector::new(dim, sorted_entries))
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_new_vector() {
+        let v = Vector::new(5, vec![
+            Entry { index: 0, value: 1.0 },
+            Entry { index: 3, value: 2.0 },
+        ]);
+        assert_eq!(v.dim, 5);
+        assert_eq!(v.nnz(), 2);
+    }
+
+    #[test]
+    fn test_assign() {
+        let v1 = Vector::new(5, vec![
+            Entry { index: 0, value: 1.0 },
+            Entry { index: 3, value: 2.0 },
+        ]);
+        let mut v2 = Vector::new(0, vec![]);
+        v2.assign(&v1);
+        assert_eq!(v1, v2);
+    }
+
+    #[test]
+    fn test_clone() {
+        let v1 = Vector::new(5, vec![
+            Entry { index: 0, value: 1.0 },
+            Entry { index: 3, value: 2.0 },
+        ]);
+        let v2 = v1.clone();
+        assert_eq!(v1, v2);
+    }
+
+    #[test]
+    fn test_set_dim() {
+        let mut v = Vector::new(5, vec![
+            Entry { index: 0, value: 1.0 },
+            Entry { index: 3, value: 2.0 },
+        ]);
+        v.set_dim(3);
+        assert_eq!(v.dim, 3);
+        assert_eq!(v.nnz(), 1);
+    }
+
+    #[test]
+    fn test_sum() {
+        let v = Vector::new(5, vec![
+            Entry { index: 0, value: 1.0 },
+            Entry { index: 3, value: 2.0 },
+        ]);
+        assert_eq!(v.sum(), 3.0);
+    }
+
+    #[test]
+    fn test_add_vec() {
+        let v1 = Vector::new(5, vec![
+            Entry { index: 0, value: 1.0 },
+            Entry { index: 3, value: 2.0 },
+        ]);
+        let v2 = Vector::new(5, vec![
+            Entry { index: 1, value: 3.0 },
+            Entry { index: 3, value: 4.0 },
+        ]);
+        let mut v3 = Vector::new(0, vec![]);
+        let result = v3.add_vec(&v1, &v2);
+        assert!(result.is_ok());
+        let expected = Vector::new(5, vec![
+            Entry { index: 0, value: 1.0 },
+            Entry { index: 1, value: 3.0 },
+            Entry { index: 3, value: 6.0 },
+        ]);
+        assert_eq!(v3, expected);
+    }
+
+    #[test]
+    fn test_sub_vec() {
+        let v1 = Vector::new(5, vec![
+            Entry { index: 0, value: 1.0 },
+            Entry { index: 3, value: 2.0 },
+        ]);
+        let v2 = Vector::new(5, vec![
+            Entry { index: 1, value: 3.0 },
+            Entry { index: 3, value: 4.0 },
+        ]);
+        let mut v3 = Vector::new(0, vec![]);
+        let result = v3.sub_vec(&v1, &v2);
+        assert!(result.is_ok());
+        let expected = Vector::new(5, vec![
+            Entry { index: 0, value: 1.0 },
+            Entry { index: 1, value: -3.0 },
+            Entry { index: 3, value: -2.0 },
+        ]);
+        assert_eq!(v3, expected);
+    }
+
+    #[test]
+    fn test_scale_vec() {
+        let v1 = Vector::new(5, vec![
+            Entry { index: 0, value: 1.0 },
+            Entry { index: 3, value: 2.0 },
+        ]);
+        let mut v2 = Vector::new(0, vec![]);
+        v2.scale_vec(2.0, &v1);
+        let expected = Vector::new(5, vec![
+            Entry { index: 0, value: 2.0 },
+            Entry { index: 3, value: 4.0 },
+        ]);
+        assert_eq!(v2, expected);
+    }
+
+    #[test]
+    fn test_vec_dot() {
+        let v1 = Vector::new(5, vec![
+            Entry { index: 0, value: 1.0 },
+            Entry { index: 3, value: 2.0 },
+        ]);
+        let v2 = Vector::new(5, vec![
+            Entry { index: 1, value: 3.0 },
+            Entry { index: 3, value: 4.0 },
+        ]);
+        let dot = vec_dot(&v1, &v2);
+        assert_eq!(dot, 8.0);
+    }
+
+ 
 }

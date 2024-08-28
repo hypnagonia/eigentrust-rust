@@ -1,26 +1,21 @@
-use std::collections::HashMap;
 use std::cmp::Ordering;
 use std::ptr;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
 
-// Define the Entry struct similar to Go's struct
-#[derive(Clone, PartialEq, Debug)]
-struct Entry {
-    index: usize,
-    value: f64,
-}
+use super::entry::Entry;
+use super::vector::Vector;
 
 // Compressed Sparse Matrix (CSMatrix) equivalent in Rust
 #[derive(Clone, PartialEq, Debug)]
-struct CSMatrix {
-    major_dim: usize,
-    minor_dim: usize,
-    entries: Vec<Vec<Entry>>,
+pub struct CSMatrix {
+    pub major_dim: usize,
+    pub minor_dim: usize,
+    pub entries: Vec<Vec<Entry>>,
 }
 
 impl CSMatrix {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             major_dim: 0,
             minor_dim: 0,
@@ -28,20 +23,20 @@ impl CSMatrix {
         }
     }
 
-    fn reset(&mut self) {
+    pub fn reset(&mut self) {
         self.major_dim = 0;
         self.minor_dim = 0;
         self.entries.clear();
     }
 
-    fn dim(&self) -> Result<usize, &'static str> {
+    pub fn dim(&self) -> Result<usize, &'static str> {
         if self.major_dim != self.minor_dim {
             return Err("Dimension mismatch");
         }
         Ok(self.major_dim)
     }
 
-    fn set_major_dim(&mut self, dim: usize) {
+    pub fn set_major_dim(&mut self, dim: usize) {
         if self.entries.capacity() < dim {
             let mut new_entries = Vec::with_capacity(dim);
             new_entries.extend(self.entries.drain(..));
@@ -51,18 +46,18 @@ impl CSMatrix {
         self.major_dim = dim;
     }
 
-    fn set_minor_dim(&mut self, dim: usize) {
+    pub fn set_minor_dim(&mut self, dim: usize) {
         for entries in &mut self.entries {
             entries.retain(|e| e.index < dim);
         }
         self.minor_dim = dim;
     }
 
-    fn nnz(&self) -> usize {
+    pub fn nnz(&self) -> usize {
         self.entries.iter().map(|row| row.len()).sum()
     }
 
-    fn transpose(&self) -> Result<CSMatrix, JsValue> {
+    pub fn transpose(&self) -> Result<CSMatrix, JsValue> {
         let mut nnzs = vec![0; self.minor_dim];
         for row_entries in &self.entries {
             for entry in row_entries {
@@ -93,7 +88,7 @@ impl CSMatrix {
         })
     }
 
-    fn merge(&mut self, other: &mut CSMatrix) {
+    pub fn merge(&mut self, other: &mut CSMatrix) {
         self.set_major_dim(self.major_dim.max(other.major_dim));
         self.set_minor_dim(self.minor_dim.max(other.minor_dim));
         for i in 0..other.major_dim {
@@ -135,12 +130,12 @@ fn merge_span(s1: &[Entry], s2: &[Entry]) -> Vec<Entry> {
 
 // CSRMatrix implementation
 #[derive(Clone, PartialEq, Debug)]
-struct CSRMatrix {
-    cs_matrix: CSMatrix,
+pub struct CSRMatrix {
+    pub cs_matrix: CSMatrix,
 }
 
 impl CSRMatrix {
-    fn new(rows: usize, cols: usize, entries: Vec<(usize, usize, f64)>) -> Self {
+    pub fn new(rows: usize, cols: usize, entries: Vec<(usize, usize, f64)>) -> Self {
         let mut matrix_entries = vec![Vec::new(); rows];
 
         for (row, col, value) in entries {
@@ -162,29 +157,32 @@ impl CSRMatrix {
         }
     }
 
-    fn dims(&self) -> (usize, usize) {
+    pub fn dims(&self) -> (usize, usize) {
         (self.cs_matrix.major_dim, self.cs_matrix.minor_dim)
     }
 
-    fn set_dim(&mut self, rows: usize, cols: usize) {
+    pub fn set_dim(&mut self, rows: usize, cols: usize) {
         self.cs_matrix.set_major_dim(rows);
         self.cs_matrix.set_minor_dim(cols);
     }
 
-    fn row_vector(&self, index: usize) -> Vec<Entry> {
-        self.cs_matrix.entries[index].clone()
+    pub fn row_vector(&self, index: usize) -> Vector {
+        Vector {
+            dim: self.cs_matrix.minor_dim,
+            entries: self.cs_matrix.entries[index].clone(),
+        }
     }
 
-    fn set_row_vector(&mut self, index: usize, vector: Vec<Entry>) {
-        self.cs_matrix.entries[index] = vector;
+    pub fn set_row_vector(&mut self, index: usize, vector: Vector) {
+        self.cs_matrix.entries[index] = vector.entries;
     }
 
-    fn transpose(&self) -> Result<CSRMatrix, JsValue> {
+    pub fn transpose(&self) -> Result<CSRMatrix, JsValue> {
         let transposed = self.cs_matrix.transpose()?;
         Ok(CSRMatrix { cs_matrix: transposed })
     }
 
-    fn transpose_to_csc(&self) -> CSCMatrix {
+    pub fn transpose_to_csc(&self) -> CSCMatrix {
         CSCMatrix {
             cs_matrix: CSMatrix {
                 major_dim: self.cs_matrix.minor_dim,
@@ -197,30 +195,33 @@ impl CSRMatrix {
 
 // CSCMatrix implementation
 #[derive(Clone, PartialEq, Debug)]
-struct CSCMatrix {
-    cs_matrix: CSMatrix,
+pub struct CSCMatrix {
+    pub cs_matrix: CSMatrix,
 }
 
 impl CSCMatrix {
-    fn dims(&self) -> (usize, usize) {
+    pub fn dims(&self) -> (usize, usize) {
         (self.cs_matrix.minor_dim, self.cs_matrix.major_dim)
     }
 
-    fn set_dim(&mut self, rows: usize, cols: usize) {
+    pub fn set_dim(&mut self, rows: usize, cols: usize) {
         self.cs_matrix.set_major_dim(cols);
         self.cs_matrix.set_minor_dim(rows);
     }
 
-    fn column_vector(&self, index: usize) -> Vec<Entry> {
-        self.cs_matrix.entries[index].clone()
+    pub fn column_vector(&self, index: usize) -> Vector {
+        Vector {
+            dim: self.cs_matrix.minor_dim,
+            entries: self.cs_matrix.entries[index].clone(),
+        }
     }
 
-    fn transpose(&self) -> Result<CSCMatrix, JsValue> {
+    pub fn transpose(&self) -> Result<CSCMatrix, JsValue> {
         let transposed = self.cs_matrix.transpose()?;
         Ok(CSCMatrix { cs_matrix: transposed })
     }
 
-    fn transpose_to_csr(&self) -> CSRMatrix {
+    pub fn transpose_to_csr(&self) -> CSRMatrix {
         CSRMatrix {
             cs_matrix: CSMatrix {
                 major_dim: self.cs_matrix.minor_dim,
@@ -231,6 +232,7 @@ impl CSCMatrix {
     }
 }
 
+// Helper functions for creating and transposing matrices
 pub fn create_csr_matrix(rows: usize, cols: usize, entries: Vec<(usize, usize, f64)>) -> CSRMatrix {
     CSRMatrix::new(rows, cols, entries)
 }
@@ -242,7 +244,6 @@ pub fn transpose_csr_matrix(matrix: &CSRMatrix) -> Result<CSRMatrix, JsValue> {
 pub fn transpose_to_csc(matrix: &CSRMatrix) -> CSCMatrix {
     matrix.transpose_to_csc()
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -381,5 +382,4 @@ mod tests {
         let result = CSRMatrix::new(5, 4, entries);
         assert_eq!(result, expected);
     }
-     
 }

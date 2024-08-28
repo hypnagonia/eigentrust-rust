@@ -1,9 +1,10 @@
 use wasm_bindgen::prelude::*;
 
-use crate::basic::localtrust::{canonicalize_local_trust};
+// use crate::basic::localtrust::{canonicalize_local_trust};
 use crate::sparse::entry::{Entry};
 
 pub mod sparse;
+pub mod basic;
 
 // This function will be exposed to JavaScript
 #[wasm_bindgen]
