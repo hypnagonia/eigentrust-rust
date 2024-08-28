@@ -7,6 +7,7 @@ use crate::sparse::entry::{Entry};
 use crate::sparse::matrix::{CSRMatrix, CSMatrix};
 use crate::sparse::vector::{Vector};
 
+
 // Canonicalize scales sparse entries in-place so that their values sum to one.
 // If entries sum to zero, Canonicalize returns an error indicating a zero-sum vector.
 pub fn canonicalize(entries: &mut [Entry]) -> Result<(), String> {
@@ -123,14 +124,18 @@ pub fn compute(
     e: f64,
     max_iterations: Option<usize>,
     min_iterations: Option<usize>
-) -> Result<Vector, JsValue> {
+) -> Result<Vector, 
+    String
+    > {
     let n = c.cs_matrix.major_dim;
     if n == 0 {
-        return Err(JsValue::from_str("Empty local trust matrix"));
+        // return Err(JsValue::from_str("Empty local trust matrix"));
+        return Err("Empty local trust matrix".to_string());
     }
 
     if p.dim != n {
-        return Err(JsValue::from_str("Dimension mismatch"));
+        // return Err(JsValue::from_str("Dimension mismatch"));
+        return Err("Dimension mismatch".to_string());
     }
 
     let mut t = p.clone();
@@ -143,7 +148,7 @@ pub fn compute(
     let mut flat_tail_checker = FlatTailChecker::new(min_iterations.unwrap_or(1), n);
 
     let mut iter = 0;
-    let max_iters = max_iterations.unwrap_or(usize::MAX);
+    let max_iters = max_iterations.unwrap_or(10000); // usize::MAX
     let min_iters = min_iterations.unwrap_or(1);
 
     while iter < max_iters {
@@ -159,11 +164,14 @@ pub fn compute(
         let t1_clone2 = t1.clone(); // Another clone to avoid borrow conflicts
         t1.add_vec(&t1_clone2, &ap)?;
 
+
+        println!("iter {:?}", iter);
         iter += 1;
     }
 
     if iter >= max_iters {
-        return Err(JsValue::from_str("Reached maximum iterations without convergence"));
+        // return Err(JsValue::from_str("Reached maximum iterations without convergence"));
+        return Err("Reached maximum iterations without convergence".to_string());
     }
 
     Ok(t1)

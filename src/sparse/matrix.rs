@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 use std::ptr;
 use wasm_bindgen::prelude::*;
-use wasm_bindgen::JsValue;
+// use wasm_bindgen::JsValue;
 
 use super::entry::Entry;
 use super::vector::Vector;
@@ -57,7 +57,7 @@ impl CSMatrix {
         self.entries.iter().map(|row| row.len()).sum()
     }
 
-    pub fn transpose(&self) -> Result<CSMatrix, JsValue> {
+    pub fn transpose(&self) -> Result<CSMatrix, String> {
         let mut nnzs = vec![0; self.minor_dim];
         for row_entries in &self.entries {
             for entry in row_entries {
@@ -177,7 +177,7 @@ impl CSRMatrix {
         self.cs_matrix.entries[index] = vector.entries;
     }
 
-    pub fn transpose(&self) -> Result<CSRMatrix, JsValue> {
+    pub fn transpose(&self) -> Result<CSRMatrix, String> {
         let transposed = self.cs_matrix.transpose()?;
         Ok(CSRMatrix { cs_matrix: transposed })
     }
@@ -216,7 +216,7 @@ impl CSCMatrix {
         }
     }
 
-    pub fn transpose(&self) -> Result<CSCMatrix, JsValue> {
+    pub fn transpose(&self) -> Result<CSCMatrix, String> {
         let transposed = self.cs_matrix.transpose()?;
         Ok(CSCMatrix { cs_matrix: transposed })
     }
@@ -238,7 +238,7 @@ pub fn create_csr_matrix(rows: usize, cols: usize, entries: Vec<(usize, usize, f
     CSRMatrix::new(rows, cols, entries)
 }
 
-pub fn transpose_csr_matrix(matrix: &CSRMatrix) -> Result<CSRMatrix, JsValue> {
+pub fn transpose_csr_matrix(matrix: &CSRMatrix) -> Result<CSRMatrix, String> {
     matrix.transpose()
 }
 
