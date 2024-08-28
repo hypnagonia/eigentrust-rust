@@ -53,6 +53,7 @@ impl ConvergenceChecker {
 
     // Returns true if the last updated vector has converged.
     pub fn converged(&self) -> bool {
+        println!("is converded {:?}", self.d <= self.e);
         self.d <= self.e
     }
 
@@ -117,6 +118,7 @@ pub struct FlatTailStats {
 }
 
 // Compute function implements the EigenTrust algorithm.
+// todo Error instead of String
 pub fn compute(
     c: &CSRMatrix,
     p: &Vector,
@@ -129,12 +131,10 @@ pub fn compute(
     > {
     let n = c.cs_matrix.major_dim;
     if n == 0 {
-        // return Err(JsValue::from_str("Empty local trust matrix"));
         return Err("Empty local trust matrix".to_string());
     }
 
     if p.dim != n {
-        // return Err(JsValue::from_str("Dimension mismatch"));
         return Err("Dimension mismatch".to_string());
     }
 
@@ -148,25 +148,42 @@ pub fn compute(
     let mut flat_tail_checker = FlatTailChecker::new(min_iterations.unwrap_or(1), n);
 
     let mut iter = 0;
-    let max_iters = max_iterations.unwrap_or(10000); // usize::MAX
+    let max_iters = max_iterations.unwrap_or(40); // usize::MAX
     let min_iters = min_iterations.unwrap_or(1);
 
     while iter < max_iters {
-        if iter >= min_iters && conv_checker.update(&t1).is_ok() && conv_checker.converged() && flat_tail_checker.reached() {
+
+        println!("--------\n");
+        println!("iter {:?}", iter);
+        println!("t1 pre {:?}", t1);
+
+        if iter >= min_iters 
+            && conv_checker.update(&t1).is_ok() 
+            && conv_checker.converged() 
+            && flat_tail_checker.reached() {
             break;
         }
 
-        // Clone t1 to avoid mutable and immutable borrow conflicts
+        println!("t1 {:?}\n", t1);
+        
+        // Avoid simultaneous borrow by using a clone for the operation
         let t1_clone = t1.clone();
-        t1.mul_vec(&ct, &t1_clone)?; // Perform the matrix-vector multiplication
-        t1.scale_vec(1.0 - a, &t1_clone); // Use t1_clone to avoid mutable borrow conflict
+        let mut new_t1 = t1.clone();
+        new_t1.mul_vec(&ct, &t1_clone)?; // Perform the matrix-vector multiplication
 
-        let t1_clone2 = t1.clone(); // Another clone to avoid borrow conflicts
-        t1.add_vec(&t1_clone2, &ap)?;
+        println!("t1 mul_vec{:?}\n", new_t1);
 
+        let t2_clone = new_t1.clone();
+        new_t1.scale_vec(1.0 - a, &t2_clone); // Scale the vector
 
-        println!("iter {:?}", iter);
-        iter += 1;
+        println!("t1 scale_vec{:?}\n", new_t1);
+
+        // Add vectors
+        t1.add_vec(&new_t1, &ap)?;
+
+        println!("t1 add_vec{:?}\n", t1);
+
+          iter += 1;
     }
 
     if iter >= max_iters {

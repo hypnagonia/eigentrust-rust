@@ -169,6 +169,8 @@ impl Vector {
     }
 
     pub fn scale_vec(&mut self, a: f64, v1: &Vector) {
+        println!("!!! scale vec {:?} {:?}", a, v1);
+
         if a == 0.0 {
             self.dim = v1.dim;
             self.entries.clear();
@@ -222,22 +224,38 @@ impl Vector {
         let jobs = Arc::new(Mutex::new((0..dim).collect::<Vec<usize>>()));
         let entries = Arc::new(Mutex::new(Vec::with_capacity(dim)));
         let mut handles = vec![];
+        let numWorkers = 32;
 
-        for _ in 0..32 {
+        for workerIndex in 0..numWorkers {
             let jobs = Arc::clone(&jobs);
             let entries = Arc::clone(&entries);
             let m_cloned = m.clone(); // Now `m` is owned, and we clone the owned data.
             let v1_cloned = v1.clone(); // Similarly, `v1` is owned and cloned.
 
             let handle = thread::spawn(move || {
+
+                
+
+
                 while let Some(row) = {
                     let mut jobs = jobs.lock().unwrap();
                     jobs.pop()
                 } {
                     // Compute the dot product for the current row.
+
+                    //println!("pre product {:?}\n ",row);
+                    //println!("pre product M {:?} {:?}\n ",row, &m_cloned.row_vector(row));
+                    //println!("pre product V1 {:?} {:?}\n ",row, v1_cloned);
+                    
                     let product = vec_dot(&m_cloned.row_vector(row), &v1_cloned);
+                    //println!("push product {:?} {:?}\n",row, product);
+
                     let mut entries = entries.lock().unwrap();
                     if product != 0.0 {
+
+                        
+
+
                         entries.push(Entry { index: row, value: product });
                     }
                 }
@@ -456,6 +474,17 @@ mod tests {
         ]);
         let dot = vec_dot(&v1, &v2);
         assert_eq!(dot, 8.0);
+
+        let v3 = Vector::new(4, vec![
+            Entry { index: 0, value: 1.0 },
+            Entry { index: 3, value: 2.0 },
+        ]);
+        let v4 = Vector::new(5, vec![
+            Entry { index: 1, value: 3.0 },
+            Entry { index: 3, value: 4.0 },
+        ]);
+        let dot2 = vec_dot(&v3, &v4);
+        assert_eq!(dot2, 8.0);
     }
 
     #[test]

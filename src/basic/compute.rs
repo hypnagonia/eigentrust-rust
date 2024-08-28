@@ -13,67 +13,35 @@ pub fn run_compute() -> Result<Vector, String> {
 
     let c = CSRMatrix {
         cs_matrix: CSMatrix {
-            major_dim: 8,
-            minor_dim: 8,
+            major_dim: 4,
+            minor_dim: 4,
             entries: vec![
                 vec![
-                    Entry { index: 6, value: 1.0 },
-                    Entry { index: 6, value: 1.0 },
-                    Entry { index: 5, value: 1.0 },
-                    Entry { index: 4, value: 1.0 },
+                    Entry { index: 1, value: 1.0 },
                 ],
                 vec![
-                    Entry { index: 0, value: 0.14285714285714285 },
-                    Entry { index: 1, value: 0.14285714285714285 },
-                    Entry { index: 2, value: 0.14285714285714285 },
-                    Entry { index: 3, value: 0.14285714285714285 },
-                    Entry { index: 4, value: 0.14285714285714285 },
-                    Entry { index: 5, value: 0.14285714285714285 },
-                    Entry { index: 6, value: 0.14285714285714285 },
+                    Entry { index: 2, value: 1.0 },
+                ],
+                vec![
+                    Entry { index: 0, value: 0.3333333333333333 },
+                    Entry { index: 1, value: 0.3333333333333333 },
+                    Entry { index: 2, value: 0.3333333333333333 },
 
                 ],
                 vec![
-                    Entry { index: 0, value: 0.14285714285714285 },
-                    Entry { index: 1, value: 0.14285714285714285 },
-                    Entry { index: 2, value: 0.14285714285714285 },
-                    Entry { index: 3, value: 0.14285714285714285 },
-                    Entry { index: 4, value: 0.14285714285714285 },
-                    Entry { index: 5, value: 0.14285714285714285 },
-                    Entry { index: 6, value: 0.14285714285714285 },
-
-                ],
-                vec![
-                    Entry { index: 0, value: 0.14285714285714285 },
-                    Entry { index: 1, value: 0.14285714285714285 },
-                    Entry { index: 2, value: 0.14285714285714285 },
-                    Entry { index: 3, value: 0.14285714285714285 },
-                    Entry { index: 4, value: 0.14285714285714285 },
-                    Entry { index: 5, value: 0.14285714285714285 },
-                    Entry { index: 6, value: 0.14285714285714285 },
-
-                ],
-                vec![
-                    Entry { index: 0, value: 0.14285714285714285 },
-                    Entry { index: 1, value: 0.14285714285714285 },
-                    Entry { index: 2, value: 0.14285714285714285 },
-                    Entry { index: 3, value: 0.14285714285714285 },
-                    Entry { index: 4, value: 0.14285714285714285 },
-                    Entry { index: 5, value: 0.14285714285714285 },
-                    Entry { index: 6, value: 0.14285714285714285 },
+                    Entry { index: 0, value: 0.3333333333333333 },
+                    Entry { index: 1, value: 0.3333333333333333 },
+                    Entry { index: 2, value: 0.3333333333333333 },
 
                 ],
             ],
         },
     };
 
-    let p = Vector::new(8, vec![
-        Entry { index: 0, value: 0.14285714285714285 },
-        Entry { index: 1, value: 0.14285714285714285 },
-        Entry { index: 2, value: 0.14285714285714285 },
-        Entry { index: 3, value: 0.14285714285714285 },
-        Entry { index: 4, value: 0.14285714285714285 },
-        Entry { index: 5, value: 0.14285714285714285 },
-        Entry { index: 6, value: 0.14285714285714285 },
+    let p = Vector::new(4, vec![
+        Entry { index: 0, value: 0.3333333333333333 },
+        Entry { index: 1, value: 0.3333333333333333 },
+        Entry { index: 2, value: 0.3333333333333333 },
     ]);
 
     let result = compute(&c, &p, a, e, None, None);
