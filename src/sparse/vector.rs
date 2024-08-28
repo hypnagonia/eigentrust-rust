@@ -1,12 +1,41 @@
 use std::cmp::Ordering;
 use std::f64;
 use std::sync::{ Arc, Mutex };
-use std::thread;
+
 use wasm_bindgen::prelude::*;
 use serde::Serialize;
 
 use super::entry::{Entry, CooEntry};
 use super::matrix::{CSRMatrix};
+
+
+use wasm_bindgen_futures::spawn_local;
+use std::thread;
+
+/*
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::thread;
+
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_futures::spawn_local;
+
+pub fn spawn_thread<F>(f: F)
+where
+    F: FnOnce() + Send + 'static,
+{
+    #[cfg(not(target_arch = "wasm32"))] {
+        let handle = thread::spawn(f);
+        handle.join().unwrap();  // In a real multi-threaded environment
+    }
+
+    #[cfg(target_arch = "wasm32")] {
+        spawn_local(async move {
+            f();
+        });
+    }
+}
+ */
 
 #[derive(Clone, PartialEq, Debug, Serialize)]
 pub struct Vector {
@@ -215,13 +244,36 @@ impl Vector {
         self.entries.sort_by_key(|e| e.index);
     }
 
+
     pub fn mul_vec(&mut self, m: &CSRMatrix, v1: &Vector) -> Result<(), String> {
         let dim = m.cs_matrix.dim()?; // Get the dimension of the matrix.
         if dim != v1.dim {
             return Err("Dimension mismatch".to_string());
         }
+    
+        let mut entries = Vec::with_capacity(dim);
+    
+        for row in 0..dim {
+            let product = vec_dot(&m.row_vector(row), &v1);
+    
+            if product != 0.0 {
+                entries.push(Entry { index: row, value: product });
+            }
+        }
+        entries.sort_by_key(|e| e.index);
+        self.dim = dim;
+        self.entries = entries;
+    
+        Ok(())
+    }
 
-        // Use `Arc` to share the data between threads safely.
+    // can't be normally used in web assembly env.
+    pub fn multithreading_mul_vec(&mut self, m: &CSRMatrix, v1: &Vector) -> Result<(), String> {
+        let dim = m.cs_matrix.dim()?; // Get the dimension of the matrix.
+        if dim != v1.dim {
+            return Err("Dimension mismatch".to_string());
+        }
+
         let jobs = Arc::new(Mutex::new((0..dim).collect::<Vec<usize>>()));
         let entries = Arc::new(Mutex::new(Vec::with_capacity(dim)));
         let mut handles = vec![];
@@ -230,13 +282,11 @@ impl Vector {
         for workerIndex in 0..numWorkers {
             let jobs = Arc::clone(&jobs);
             let entries = Arc::clone(&entries);
-            let m_cloned = m.clone(); // Now `m` is owned, and we clone the owned data.
-            let v1_cloned = v1.clone(); // Similarly, `v1` is owned and cloned.
+            let m_cloned = m.clone(); 
+            let v1_cloned = v1.clone(); 
 
             let handle = thread::spawn(move || {
-
-                
-
+            // let handle = spawn_local(async move {
 
                 while let Some(row) = {
                     let mut jobs = jobs.lock().unwrap();
@@ -254,9 +304,6 @@ impl Vector {
                     let mut entries = entries.lock().unwrap();
                     if product != 0.0 {
 
-                        
-
-
                         entries.push(Entry { index: row, value: product });
                     }
                 }
@@ -265,16 +312,13 @@ impl Vector {
             handles.push(handle);
         }
 
-        // Wait for all threads to complete.
         for handle in handles {
             handle.join().unwrap();
         }
 
-        // Collect and sort the results.
         let mut sorted_entries = Arc::try_unwrap(entries).unwrap().into_inner().unwrap();
         sorted_entries.sort_by_key(|e| e.index);
 
-        // Set the result to self
         self.dim = dim;
         self.entries = sorted_entries;
 
@@ -301,55 +345,6 @@ pub fn vec_dot(v1: &Vector, v2: &Vector) -> f64 {
 
     sum
 }
-
-/* 
-// todo
-pub fn mul_vec(m: &CSRMatrix, v1: &Vector) -> Result<Vector, String> {
-    let dim = m.cs_matrix.dim()?; // Get the dimension of the matrix.
-    if dim != v1.dim {
-        return Err("Dimension mismatch".to_string());
-    }
-
-    // Use `Arc` to share the data between threads safely.
-    let jobs = Arc::new(Mutex::new((0..dim).collect::<Vec<usize>>()));
-    let entries = Arc::new(Mutex::new(Vec::with_capacity(dim)));
-    let mut handles = vec![];
-
-    for _ in 0..32 {
-        let jobs = Arc::clone(&jobs);
-        let entries = Arc::clone(&entries);
-        let m_cloned = m.clone(); // Now `m` is owned, and we clone the owned data.
-        let v1_cloned = v1.clone(); // Similarly, `v1` is owned and cloned.
-
-        let handle = thread::spawn(move || {
-            while let Some(row) = {
-                let mut jobs = jobs.lock().unwrap();
-                jobs.pop()
-            } {
-                // Compute the dot product for the current row.
-                let product = vec_dot(&m_cloned.row_vector(row), &v1_cloned);
-                let mut entries = entries.lock().unwrap();
-                if product != 0.0 {
-                    entries.push(Entry { index: row, value: product });
-                }
-            }
-        });
-
-        handles.push(handle);
-    }
-
-    // Wait for all threads to complete.
-    for handle in handles {
-        handle.join().unwrap();
-    }
-
-    // Collect and sort the results.
-    let mut sorted_entries = Arc::try_unwrap(entries).unwrap().into_inner().unwrap();
-    sorted_entries.sort_by_key(|e| e.index);
-
-    Ok(Vector::new(dim, sorted_entries))
-}
-*/
 
 #[cfg(test)]
 mod tests {

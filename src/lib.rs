@@ -14,12 +14,12 @@ use web_sys::console;
 use std::panic;
 
 #[wasm_bindgen]
-pub fn run(left: u64, right: u64) -> u64 {
+pub fn run(left: u64, right: u64) -> String {
     panic::set_hook(Box::new(console_error_panic_hook::hook));
-    
+
     let result = run_compute();
-    //let json = serde_json::to_string(&result).unwrap();
+    let json = serde_json::to_string(&result).unwrap();
     console::log_1(&"Hello from Rust!".into());
 
-    666
+    json.to_string()
 }
