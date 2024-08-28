@@ -22,7 +22,7 @@ fn generate_csv_data(num_records: usize) -> (String, HashMap<String, usize>) {
 
     for i in 0..num_records {
         let from = (i + 1) % 1000;
-        let to = (i ) % 100;
+        let to = i % 100;
         let level = generate_random_f64(0.01, 1.0);
 
         csv_data.push_str(&format!("{},{},{}\n", from, to, level));
@@ -63,9 +63,7 @@ pub fn calculate() -> Result<Vector, String> {
             major_dim: 8,
             minor_dim: 8,
             entries: vec![
-                vec![
-                    Entry { index: 3, value: 1.0 },
-                ],
+                vec![Entry { index: 3, value: 1.0 }],
                 vec![
                     Entry { index: 0, value: 0.14285714285714285 },
                     Entry { index: 1, value: 0.14285714285714285 },
@@ -73,12 +71,9 @@ pub fn calculate() -> Result<Vector, String> {
                     Entry { index: 3, value: 0.14285714285714285 },
                     Entry { index: 4, value: 0.14285714285714285 },
                     Entry { index: 5, value: 0.14285714285714285 },
-                    Entry { index: 6, value: 0.14285714285714285 },
-
+                    Entry { index: 6, value: 0.14285714285714285 }
                 ],
-                vec![
-                    Entry { index: 3, value: 1.0 },
-                ],
+                vec![Entry { index: 3, value: 1.0 }],
                 vec![
                     Entry { index: 0, value: 0.14285714285714285 },
                     Entry { index: 1, value: 0.14285714285714285 },
@@ -86,11 +81,9 @@ pub fn calculate() -> Result<Vector, String> {
                     Entry { index: 3, value: 0.14285714285714285 },
                     Entry { index: 4, value: 0.14285714285714285 },
                     Entry { index: 5, value: 0.14285714285714285 },
-                    Entry { index: 6, value: 0.14285714285714285 },
+                    Entry { index: 6, value: 0.14285714285714285 }
                 ],
-                vec![
-                    Entry { index: 1, value: 1.0 },
-                ],
+                vec![Entry { index: 1, value: 1.0 }],
                 vec![
                     Entry { index: 0, value: 0.14285714285714285 },
                     Entry { index: 1, value: 0.14285714285714285 },
@@ -98,11 +91,9 @@ pub fn calculate() -> Result<Vector, String> {
                     Entry { index: 3, value: 0.14285714285714285 },
                     Entry { index: 4, value: 0.14285714285714285 },
                     Entry { index: 5, value: 0.14285714285714285 },
-                    Entry { index: 6, value: 0.14285714285714285 },
+                    Entry { index: 6, value: 0.14285714285714285 }
                 ],
-                vec![
-                    Entry { index: 5, value: 1.0 },
-                ],
+                vec![Entry { index: 5, value: 1.0 }],
                 vec![
                     Entry { index: 0, value: 0.14285714285714285 },
                     Entry { index: 1, value: 0.14285714285714285 },
@@ -110,21 +101,24 @@ pub fn calculate() -> Result<Vector, String> {
                     Entry { index: 3, value: 0.14285714285714285 },
                     Entry { index: 4, value: 0.14285714285714285 },
                     Entry { index: 5, value: 0.14285714285714285 },
-                    Entry { index: 6, value: 0.14285714285714285 },
-                ],
+                    Entry { index: 6, value: 0.14285714285714285 }
+                ]
             ],
         },
     };
 
-    let p = Vector::new(8, vec![
-        Entry { index: 0, value: 0.14285714285714285 },
-        Entry { index: 1, value: 0.14285714285714285 },
-        Entry { index: 2, value: 0.14285714285714285 },
-        Entry { index: 3, value: 0.14285714285714285 },
-        Entry { index: 4, value: 0.14285714285714285 },
-        Entry { index: 5, value: 0.14285714285714285 },
-        Entry { index: 6, value: 0.14285714285714285 },
-    ]);
+    let p = Vector::new(
+        8,
+        vec![
+            Entry { index: 0, value: 0.14285714285714285 },
+            Entry { index: 1, value: 0.14285714285714285 },
+            Entry { index: 2, value: 0.14285714285714285 },
+            Entry { index: 3, value: 0.14285714285714285 },
+            Entry { index: 4, value: 0.14285714285714285 },
+            Entry { index: 5, value: 0.14285714285714285 },
+            Entry { index: 6, value: 0.14285714285714285 }
+        ]
+    );
 
     let result = compute(&c, &p, a, e, None, None);
 
@@ -137,9 +131,5 @@ mod tests {
 
     #[test]
     fn test_run() {
-        let result = calculate();
-        let l = 1;
-        let expected_l = 1;
-        assert_eq!(l, expected_l, "{}: l = {}", l, expected_l);
     }
 }

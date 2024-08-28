@@ -18,8 +18,12 @@ http://localhost:8000/index.html
 
 ## run binary main.rs
 ```
+cargo build
+
 ./target/release/eigentrust-js
 ```
+
+
 
 ## test web??
 ```
