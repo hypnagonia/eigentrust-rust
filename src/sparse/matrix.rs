@@ -1,90 +1,88 @@
-use wasm_bindgen::prelude::*;
+use std::collections::HashMap;
 use std::cmp::Ordering;
-use std::slice;
+use std::ptr;
+use wasm_bindgen::prelude::*;
+use wasm_bindgen::JsValue;
 
-// Entry struct similar to Go's sparse matrix entry
-#[derive(Debug, Clone, PartialEq)]
-pub struct Entry {
-    pub index: usize,
-    pub value: f64,
+// Define the Entry struct similar to Go's struct
+#[derive(Clone, PartialEq, Debug)]
+struct Entry {
+    index: usize,
+    value: f64,
 }
 
-impl Entry {
-    pub fn new(index: usize, value: f64) -> Entry {
-        Entry { index, value }
-    }
-}
-
-// Compressed Sparse Matrix (CSMatrix)
-#[derive(Debug, Clone, PartialEq)]
-pub struct CSMatrix {
+// Compressed Sparse Matrix (CSMatrix) equivalent in Rust
+#[derive(Clone, PartialEq, Debug)]
+struct CSMatrix {
     major_dim: usize,
     minor_dim: usize,
     entries: Vec<Vec<Entry>>,
 }
 
 impl CSMatrix {
-    pub fn new(major_dim: usize, minor_dim: usize, entries: Vec<Vec<Entry>>) -> CSMatrix {
-        CSMatrix {
-            major_dim,
-            minor_dim,
-            entries,
+    fn new() -> Self {
+        Self {
+            major_dim: 0,
+            minor_dim: 0,
+            entries: Vec::new(),
         }
     }
 
-    pub fn reset(&mut self) {
+    fn reset(&mut self) {
         self.major_dim = 0;
         self.minor_dim = 0;
         self.entries.clear();
     }
 
-    pub fn dim(&self) -> Result<usize, String> {
+    fn dim(&self) -> Result<usize, &'static str> {
         if self.major_dim != self.minor_dim {
-            Err("Dimension mismatch".to_string())
-        } else {
-            Ok(self.major_dim)
+            return Err("Dimension mismatch");
         }
+        Ok(self.major_dim)
     }
 
-    pub fn set_major_dim(&mut self, dim: usize) {
+    fn set_major_dim(&mut self, dim: usize) {
         if self.entries.capacity() < dim {
-            self.entries.resize(dim, Vec::new());
+            let mut new_entries = Vec::with_capacity(dim);
+            new_entries.extend(self.entries.drain(..));
+            self.entries = new_entries;
         }
+        self.entries.resize_with(dim, Vec::new);
         self.major_dim = dim;
     }
 
-    pub fn set_minor_dim(&mut self, dim: usize) {
-        self.minor_dim = dim;
-        for entry in &mut self.entries {
-            entry.retain(|e| e.index < dim);
+    fn set_minor_dim(&mut self, dim: usize) {
+        for entries in &mut self.entries {
+            entries.retain(|e| e.index < dim);
         }
+        self.minor_dim = dim;
     }
 
-    pub fn nnz(&self) -> usize {
-        self.entries
-            .iter()
-            .map(|row| row.len())
-            .sum()
+    fn nnz(&self) -> usize {
+        self.entries.iter().map(|row| row.len()).sum()
     }
 
-    pub fn transpose(&self) -> Result<CSMatrix, String> {
+    fn transpose(&self) -> Result<CSMatrix, JsValue> {
         let mut nnzs = vec![0; self.minor_dim];
-        for row in &self.entries {
-            for e in row {
-                nnzs[e.index] += 1;
+        for row_entries in &self.entries {
+            for entry in row_entries {
+                nnzs[entry.index] += 1;
             }
         }
 
         let mut transposed_entries = vec![Vec::new(); self.minor_dim];
         for (col, &nnz) in nnzs.iter().enumerate() {
-            if nnz > 0 {
-                transposed_entries[col] = Vec::with_capacity(nnz);
+            if nnz != 0 {
+                transposed_entries[col].reserve(nnz);
             }
         }
 
         for (row, row_entries) in self.entries.iter().enumerate() {
-            for e in row_entries {
-                transposed_entries[e.index].push(Entry::new(row, e.value));
+            for entry in row_entries {
+                transposed_entries[entry.index].push(Entry {
+                    index: row,
+                    value: entry.value,
+                });
             }
         }
 
@@ -95,140 +93,155 @@ impl CSMatrix {
         })
     }
 
-    pub fn merge(&mut self, other: &mut CSMatrix) {
-        self.set_major_dim(usize::max(self.major_dim, other.major_dim));
-        self.set_minor_dim(usize::max(self.minor_dim, other.minor_dim));
-
+    fn merge(&mut self, other: &mut CSMatrix) {
+        self.set_major_dim(self.major_dim.max(other.major_dim));
+        self.set_minor_dim(self.minor_dim.max(other.minor_dim));
         for i in 0..other.major_dim {
-            let merged = merge_span(&self.entries[i], &other.entries[i]);
-            self.entries[i] = merged;
+            self.entries[i] = merge_span(&self.entries[i], &other.entries[i]);
         }
         other.reset();
     }
 }
 
+// Merges two spans
 fn merge_span(s1: &[Entry], s2: &[Entry]) -> Vec<Entry> {
-    let mut result = Vec::with_capacity(s1.len() + s2.len());
-    let (mut i1, mut i2) = (0, 0);
+    let mut s = Vec::with_capacity(s1.len() + s2.len());
+    let mut i1 = 0;
+    let mut i2 = 0;
 
     while i1 < s1.len() || i2 < s2.len() {
-        if i1 < s1.len() && (i2 >= s2.len() || s1[i1].index < s2[i2].index) {
-            result.push(s1[i1].clone());
+        if i2 >= s2.len() {
+            s.push(s1[i1].clone());
             i1 += 1;
-        } else if i2 < s2.len() && (i1 >= s1.len() || s1[i1].index > s2[i2].index) {
-            result.push(s2[i2].clone());
+        } else if i1 >= s1.len() {
+            s.push(s2[i2].clone());
+            i2 += 1;
+        } else if s1[i1].index < s2[i2].index {
+            s.push(s1[i1].clone());
+            i1 += 1;
+        } else if s1[i1].index > s2[i2].index {
+            s.push(s2[i2].clone());
             i2 += 1;
         } else {
-            result.push(s2[i2].clone());
+            s.push(s2[i2].clone());
             i1 += 1;
             i2 += 1;
         }
     }
 
-    result.shrink_to_fit();
-    result
+    s.shrink_to_fit();
+    s
 }
 
-// Compressed Sparse Row (CSR) Matrix
-#[derive(Debug, Clone)]
-pub struct CSRMatrix {
+// CSRMatrix implementation
+#[derive(Clone, PartialEq, Debug)]
+struct CSRMatrix {
     cs_matrix: CSMatrix,
 }
 
 impl CSRMatrix {
-    pub fn new(rows: usize, cols: usize, entries: Vec<Entry>) -> CSRMatrix {
-        let mut entries2: Vec<Vec<Entry>> = vec![Vec::new(); rows];
+    fn new(rows: usize, cols: usize, entries: Vec<(usize, usize, f64)>) -> Self {
+        let mut matrix_entries = vec![Vec::new(); rows];
 
-        for e in entries {
-            if e.value != 0.0 {
-                entries2[e.index].push(e);
+        for (row, col, value) in entries {
+            if value != 0.0 {
+                matrix_entries[row].push(Entry { index: col, value });
             }
         }
 
-        for row in entries2.iter_mut() {
+        for row in &mut matrix_entries {
             row.sort_by(|a, b| a.index.cmp(&b.index));
         }
 
         CSRMatrix {
-            cs_matrix: CSMatrix::new(rows, cols, entries2),
+            cs_matrix: CSMatrix {
+                major_dim: rows,
+                minor_dim: cols,
+                entries: matrix_entries,
+            },
         }
     }
 
-    pub fn dims(&self) -> (usize, usize) {
+    fn dims(&self) -> (usize, usize) {
         (self.cs_matrix.major_dim, self.cs_matrix.minor_dim)
     }
 
-    pub fn set_dim(&mut self, rows: usize, cols: usize) {
+    fn set_dim(&mut self, rows: usize, cols: usize) {
         self.cs_matrix.set_major_dim(rows);
         self.cs_matrix.set_minor_dim(cols);
     }
 
-    pub fn transpose(&self) -> Result<CSRMatrix, String> {
-        self.cs_matrix.transpose().map(|transposed| CSRMatrix {
-            cs_matrix: transposed,
-        })
+    fn row_vector(&self, index: usize) -> Vec<Entry> {
+        self.cs_matrix.entries[index].clone()
+    }
+
+    fn set_row_vector(&mut self, index: usize, vector: Vec<Entry>) {
+        self.cs_matrix.entries[index] = vector;
+    }
+
+    fn transpose(&self) -> Result<CSRMatrix, JsValue> {
+        let transposed = self.cs_matrix.transpose()?;
+        Ok(CSRMatrix { cs_matrix: transposed })
+    }
+
+    fn transpose_to_csc(&self) -> CSCMatrix {
+        CSCMatrix {
+            cs_matrix: CSMatrix {
+                major_dim: self.cs_matrix.minor_dim,
+                minor_dim: self.cs_matrix.major_dim,
+                entries: self.cs_matrix.entries.clone(),
+            },
+        }
     }
 }
 
-// Compressed Sparse Column (CSC) Matrix
-#[derive(Debug, Clone, PartialEq)]
-pub struct CSCMatrix {
+// CSCMatrix implementation
+#[derive(Clone, PartialEq, Debug)]
+struct CSCMatrix {
     cs_matrix: CSMatrix,
 }
 
 impl CSCMatrix {
-    pub fn new(cols: usize, rows: usize, entries: Vec<Entry>) -> CSCMatrix {
-        let mut entries2: Vec<Vec<Entry>> = vec![Vec::new(); cols];
-
-        for e in entries {
-            if e.value != 0.0 {
-                entries2[e.index].push(e);
-            }
-        }
-
-        for col in entries2.iter_mut() {
-            col.sort_by(|a, b| a.index.cmp(&b.index));
-        }
-
-        CSCMatrix {
-            cs_matrix: CSMatrix::new(cols, rows, entries2),
-        }
-    }
-
-    pub fn dims(&self) -> (usize, usize) {
+    fn dims(&self) -> (usize, usize) {
         (self.cs_matrix.minor_dim, self.cs_matrix.major_dim)
     }
 
-    pub fn transpose(&self) -> Result<CSCMatrix, String> {
-        self.cs_matrix.transpose().map(|transposed| CSCMatrix {
-            cs_matrix: transposed,
-        })
+    fn set_dim(&mut self, rows: usize, cols: usize) {
+        self.cs_matrix.set_major_dim(cols);
+        self.cs_matrix.set_minor_dim(rows);
     }
-}
 
+    fn column_vector(&self, index: usize) -> Vec<Entry> {
+        self.cs_matrix.entries[index].clone()
+    }
 
-// NewCSRMatrix constructor function
-/*
-fn new_csr_matrix(rows: usize, cols: usize, entries: Vec<(i32, i32, f64)>) -> CSRMatrix {
-    let mut cs_matrix = CSMatrix {
-        major_dim: rows,
-        minor_dim: cols,
-        entries: vec![vec![]; rows],
-    };
+    fn transpose(&self) -> Result<CSCMatrix, JsValue> {
+        let transposed = self.cs_matrix.transpose()?;
+        Ok(CSCMatrix { cs_matrix: transposed })
+    }
 
-    for (row, col, value) in entries {
-        if value != 0 {
-            cs_matrix.entries[row].push(Entry {
-                index: usize::from(col),
-                value,
-            });
+    fn transpose_to_csr(&self) -> CSRMatrix {
+        CSRMatrix {
+            cs_matrix: CSMatrix {
+                major_dim: self.cs_matrix.minor_dim,
+                minor_dim: self.cs_matrix.major_dim,
+                entries: self.cs_matrix.entries.clone(),
+            },
         }
     }
-
-    CSRMatrix { cs_matrix }
 }
- */
 
+pub fn create_csr_matrix(rows: usize, cols: usize, entries: Vec<(usize, usize, f64)>) -> CSRMatrix {
+    CSRMatrix::new(rows, cols, entries)
+}
+
+pub fn transpose_csr_matrix(matrix: &CSRMatrix) -> Result<CSRMatrix, JsValue> {
+    matrix.transpose()
+}
+
+pub fn transpose_to_csc(matrix: &CSRMatrix) -> CSCMatrix {
+    matrix.transpose_to_csc()
+}
 
 
 #[cfg(test)]
@@ -326,8 +339,7 @@ mod tests {
         assert_eq!(m, merged);
     }
 
-    // #[test]
-    /*
+    #[test]
     fn test_new_csr_matrix() {
         let entries = vec![
             (0, 0, 100.0),
@@ -366,8 +378,8 @@ mod tests {
             },
         };
 
-        let result = new_csr_matrix(5, 4, entries);
+        let result = CSRMatrix::new(5, 4, entries);
         assert_eq!(result, expected);
     }
-     */
+     
 }

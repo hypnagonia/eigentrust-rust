@@ -1,4 +1,6 @@
 use wasm_bindgen::prelude::*;
+
+use crate::basic::localtrust::{canonicalize_local_trust};
 use crate::sparse::entry::{Entry};
 
 pub mod sparse;
