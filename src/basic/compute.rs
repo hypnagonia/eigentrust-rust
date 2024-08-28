@@ -47,13 +47,10 @@ pub fn run_compute() -> Result<Vector, String> {
     let (csv_data, peer_indices) = generate_csv_data(100_000);
     let peer_indices2 = peer_indices.clone();
 
-    let c = read_local_trust_from_csv(&csv_data, peer_indices).unwrap();
-    let p = read_trust_vector_from_csv(&csv_data, &peer_indices2).unwrap();
+    let c2 = read_local_trust_from_csv(&csv_data, peer_indices).unwrap();
+    let p2 = read_trust_vector_from_csv(&csv_data, &peer_indices2).unwrap();
 
-    //println!("{:?}\n----", p); 
-    //println!("{:?}\n----", c); 
-
-    let cc = CSRMatrix {
+    let c = CSRMatrix {
         cs_matrix: CSMatrix {
             major_dim: 4,
             minor_dim: 4,
@@ -80,7 +77,7 @@ pub fn run_compute() -> Result<Vector, String> {
         },
     };
 
-    let pp = Vector::new(4, vec![
+    let p = Vector::new(4, vec![
         Entry { index: 0, value: 0.3333333333333333 },
         Entry { index: 1, value: 0.3333333333333333 },
         Entry { index: 2, value: 0.3333333333333333 },
