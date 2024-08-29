@@ -68,15 +68,15 @@
 <body>
     <div class="container">
         <div class="upload-section" id="localTrustSection">
-            <h1>Upload LocalTrust CSV</h1>
+            <h1>Upload Local Trust CSV</h1>
             <input type="file" id="localTrustInput" accept=".csv">
-            <h2>LocalTrust:</h2>
+            <h2>Local Trust:</h2>
             <pre id="localTrustContent"></pre>
         </div>
         <div class="upload-section" id="preTrustSection">
-            <h1>Upload PreTrust CSV</h1>
+            <h1>Upload Seed Trust CSV</h1>
             <input type="file" id="preTrustInput" accept=".csv">
-            <h2>PreTrust:</h2>
+            <h2>Seed Trust:</h2>
             <pre id="preTrustContent"></pre>
         </div>
 
@@ -104,7 +104,7 @@
                 if (csvText.length < 1000) {
                     document.getElementById('localTrustContent').textContent = csvText;
                 } else {
-                    document.getElementById('localTrustContent').textContent = csvText.length + ' records';
+                    document.getElementById('localTrustContent').textContent = 'Local trust Loaded';
                 }
 
                 localtrustBytes = new TextEncoder().encode(csvText);
@@ -124,7 +124,7 @@
                 if (csvText.length < 1000) {
                     document.getElementById('preTrustContent').textContent = csvText;
                 } else {
-                    document.getElementById('preTrustContent').textContent = csvText.length + ' records';
+                    document.getElementById('preTrustContent').textContent = 'Seed trust loaded';
                 }
 
                 pretrustBytes = new TextEncoder().encode(csvText);
@@ -138,8 +138,6 @@
 
         async function main() {
             await init()
-
-            console.log(run)
             document.getElementById('calculate').addEventListener('click', () => {
                 if (!localtrustBytes || !pretrustBytes) {
                     alert('add localtrust and pretrust')

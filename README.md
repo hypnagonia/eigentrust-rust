@@ -1,14 +1,15 @@
 ## Rust (WASM) port of Eigentrust
+This is a Rust port of the [EigenTrust](https://nlp.stanford.edu/pubs/eigentrust.pdf) algorithm made by [Jenya](https://github.com/hypnagonia), originally implemented in [Go](https://github.com/Karma3Labs/go-eigentrust) by [Eugene](https://github.com/astralblue). The project includes both server and client implementations designed to run natively as well as in a **WebAssembly (Wasm) environment for browser compatibility**.
 
 ## Live Demo
 [https://eigentrust.web.app](https://eigentrust.web.app)
 
-## test
+## Test
 ```
 cargo test
 ```
 
-## build WASM
+## Build WASM for web
 ```
 wasm-pack build --target web
 
@@ -17,13 +18,24 @@ python3 -m http.server
 http://localhost:8000/index.html
 ```
 
+## Call from browser environment
+```js
+import init, { run } from './pkg/eigentrust_js.js'
+    async function main() {
+        await init()
+        console.time("eigentrust job")
+        const result = run(localtrustBytes, pretrustBytes)
+        console.timeEnd("eigentrust job")
+        console.log({result})
+    }
+
+    main()
+```
 
 ## run OS native
 ```
 cargo run
 ```
-
-
 
 ## test web??
 ```
