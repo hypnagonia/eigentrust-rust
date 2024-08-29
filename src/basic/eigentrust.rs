@@ -146,12 +146,14 @@ pub fn compute<'a>(
 
     let t0 = current_time_millis();
 
+
     let mut t1 = p.clone();
     let ct = c.transpose()?;
     let mut ap = p.clone();
     ap.scale_vec(a, p);
 
     let num_leaders = n;
+
 
     let mut conv_checker = ConvergenceChecker::new(&t1, e);
     let mut flat_tail_checker = FlatTailChecker::new(min_iterations.unwrap_or(1), num_leaders);

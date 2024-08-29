@@ -8,7 +8,6 @@ use serde::Serialize;
 use std::thread;
 use wasm_bindgen_futures::spawn_local;
 use super::util::KBNSummer;
-
 use rayon::prelude::*;
 use rayon::ThreadPoolBuilder;
 use num_cpus;
@@ -286,8 +285,6 @@ impl Vector {
 
         for row in 0..dim {
             let product = vec_dot(&m.row_vector(row), &v1);
-            let a = m.row_vector(row);
-
             if product != 0.0 {
                 entries.push(Entry {
                     index: row,
@@ -299,12 +296,11 @@ impl Vector {
         entries.sort_by_key(|e| e.index);
         self.dim = dim;
         self.entries = entries;
-
+        
         Ok(())
     }
 }
 
-// todo bottleneck
 pub fn vec_dot(v1: &Vector, v2: &Vector) -> f64 {
     let n2 = v2.entries.len();
     if n2 == 0 {
