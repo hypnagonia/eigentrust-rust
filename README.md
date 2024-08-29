@@ -1,7 +1,7 @@
 ## Rust (WASM) port of Eigentrust
 
 ## Live Demo
-(https://eigentrust.web.app/)[https://eigentrust.web.app/]
+[https://eigentrust.web.app](https://eigentrust.web.app)
 
 ## test
 ```
@@ -18,11 +18,9 @@ http://localhost:8000/index.html
 ```
 
 
-## run binary main.rs
+## run OS native
 ```
-cargo build
-
-./target/release/eigentrust-js
+cargo run
 ```
 
 
