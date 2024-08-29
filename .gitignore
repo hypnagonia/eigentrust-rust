@@ -3,5 +3,6 @@
 .firebase
 .firebase/*
 tmp
-
+firebase
+*.log
 

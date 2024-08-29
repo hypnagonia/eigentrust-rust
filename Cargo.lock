@@ -56,7 +56,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "eigentrust-js"
+name = "eigentrust-rs"
 version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
