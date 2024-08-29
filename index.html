@@ -88,9 +88,8 @@
     </div>
 
     <div class="container2">
-        <input type="number" id="alphaValueInput" placeholder="Alpha = 0.5" step="0.01" defaul="0.5">
         <button id="calculate">Run Job</button>
-
+        <input type="number" id="alphaValueInput" placeholder="Alpha = 0.5" step="0.01" defaul="0.5">
         <pre><span id="result"></span>[]</pre>
     </div>
 
@@ -150,7 +149,7 @@
 
                 const alphaStr = document.getElementById('alphaValueInput').value
                 let alpha
-                
+
                 if (!alphaStr) {
                     alpha = 0.5
                 } else {
@@ -162,12 +161,13 @@
                     return;
                 }
 
-                console.log({ alpha })
-                console.time("eigentrust job")
-                const result = run(localtrustBytes, pretrustBytes, alpha)
-                console.timeEnd("eigentrust job")
-
-                document.getElementById('result').innerHTML = result
+                document.getElementById('result').innerHTML = 'Running...'
+                setTimeout(() => {
+                    console.time("eigentrust job")
+                    const result = run(localtrustBytes, pretrustBytes, alpha)
+                    console.timeEnd("eigentrust job")
+                    document.getElementById('result').innerHTML = result
+                }, 0)
             })
         }
 
