@@ -173,10 +173,11 @@ pub fn compute<'a>(
 
     while iter < max_iters {
         let iter_t0 = current_time_millis();
-        println!("iter {:?}",iter);
-        println!("convChecker.iter  {:?}", conv_checker.iter);
         println!("d {:?}",conv_checker.d);
 
+        // todo
+        // back to int
+        // flat tail
         if (iter as f64 - min_iters as f64) % check_freq == 0.0 {
             if iter >= min_iters {
                 conv_checker.update(&t1);
