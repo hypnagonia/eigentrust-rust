@@ -184,7 +184,7 @@ pub fn compute(
 
         let iter_t1 = current_time_millis();
         let message = format!(
-            "one iteration duration={:?}: iteration = {}",
+            "one iteration time={:?}: iteration={}",
             iter_t1 - iter_t0,
             iter
         );
@@ -200,7 +200,7 @@ pub fn compute(
 
     let t1_time = current_time_millis();
     log::info!(
-        "Compute finished in {:?}, dim = {}, nnz = {}, alpha = {}, epsilon = {}, total iterations: {}",
+        "Compute finished time={:?}, dim={}, nnz={}, alpha={}, epsilon={}, iterations={}",
         t1_time - t0,
         n,
         ct.cs_matrix.nnz(),
