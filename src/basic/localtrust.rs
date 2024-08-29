@@ -1,14 +1,14 @@
-use crate::sparse::entry::Entry;
+use super::util::PeersMap;
 use crate::sparse::entry::CooEntry;
+use crate::sparse::entry::Entry;
 use crate::sparse::matrix::CSRMatrix;
 use crate::sparse::vector::Vector;
-use wasm_bindgen::prelude::*;
 use std::collections::HashMap;
-use super::util::PeersMap;
+use wasm_bindgen::prelude::*;
 
 pub fn canonicalize_local_trust(
     local_trust: &mut CSRMatrix,
-    pre_trust: Option<Vector>
+    pre_trust: Option<Vector>,
 ) -> Result<(), String> {
     let n = local_trust.dims().0;
 
@@ -21,10 +21,7 @@ pub fn canonicalize_local_trust(
 
     for i in 0..n {
         let mut in_row = local_trust.row_vector(i);
-        let row_sum: f64 = in_row.entries
-            .iter()
-            .map(|entry| entry.value)
-            .sum();
+        let row_sum: f64 = in_row.entries.iter().map(|entry| entry.value).sum();
 
         if row_sum == 0.0 {
             if let Some(ref pre_trust_vec) = pre_trust {
@@ -68,10 +65,7 @@ pub fn extract_distrust(local_trust: &mut CSRMatrix) -> Result<CSRMatrix, String
     Ok(distrust)
 }
 
-fn parse_csv_line(
-    line: &str,
-    peer_indices: &mut PeersMap
-) -> Result<(usize, usize, f64), String> {
+fn parse_csv_line(line: &str, peer_indices: &mut PeersMap) -> Result<(usize, usize, f64), String> {
     let fields: Vec<&str> = line.split(',').collect();
 
     if fields.len() < 2 {
@@ -80,7 +74,9 @@ fn parse_csv_line(
     let from = peer_indices.insert_or_get(fields[0].to_string());
     let to = peer_indices.insert_or_get(fields[1].to_string());
     let level = if fields.len() >= 3 {
-        fields[2].parse::<f64>().map_err(|_| "Invalid trust level")?
+        fields[2]
+            .parse::<f64>()
+            .map_err(|_| "Invalid trust level")?
     } else {
         1.0
     };
@@ -107,14 +103,12 @@ pub fn read_local_trust_from_csv(csv_data: &str) -> Result<(CSRMatrix, PeersMap)
                 entries.push((from, to, level));
             }
             Err(e) => {
-                return Err(
-                    format!(
-                        "Cannot parse local trust CSV record #{}: {:?} {:?}",
-                        count + 1,
-                        e,
-                        line
-                    )
-                );
+                return Err(format!(
+                    "Cannot parse local trust CSV record #{}: {:?} {:?}",
+                    count + 1,
+                    e,
+                    line
+                ));
             }
         }
     }
@@ -141,13 +135,13 @@ mod tests {
             local_trust: CSRMatrix::new(
                 3,
                 3,
-                vec![(0, 0, 100.0), (0, 1, -50.0), (0, 2, -50.0), (2, 0, -100.0)]
+                vec![(0, 0, 100.0), (0, 1, -50.0), (0, 2, -50.0), (2, 0, -100.0)],
             ),
             expected_trust: CSRMatrix::new(3, 3, vec![(0, 0, 100.0)]),
             expected_distrust: CSRMatrix::new(
                 3,
                 3,
-                vec![(0, 1, 50.0), (0, 2, 50.0), (2, 0, 100.0)]
+                vec![(0, 1, 50.0), (0, 2, 50.0), (2, 0, 100.0)],
             ),
         }];
 
@@ -156,14 +150,12 @@ mod tests {
             let distrust = extract_distrust(&mut local_trust).expect("Failed to extract distrust");
 
             assert_eq!(
-                local_trust,
-                test.expected_trust,
+                local_trust, test.expected_trust,
                 "{}: local trust does not match expected value",
                 test.name
             );
             assert_eq!(
-                distrust,
-                test.expected_distrust,
+                distrust, test.expected_distrust,
                 "{}: distrust does not match expected value",
                 test.name
             );

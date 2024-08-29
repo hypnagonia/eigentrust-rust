@@ -1,3 +1,5 @@
+use super::util::log_message;
+use super::util::PeersMap;
 use crate::sparse::entry::Entry;
 use crate::sparse::matrix::{CSMatrix, CSRMatrix};
 use crate::sparse::vector::Vector;
@@ -7,8 +9,6 @@ use std::error::Error;
 use std::f64;
 use wasm_bindgen::prelude::*;
 use web_sys::console;
-use super::util::log_message;
-use super::util::PeersMap;
 
 // Canonicalize scales sparse entries in-place so that their values sum to one.
 // If entries sum to zero, Canonicalize returns an error indicating a zero-sum vector.

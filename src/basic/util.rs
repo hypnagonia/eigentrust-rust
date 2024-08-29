@@ -30,7 +30,7 @@ impl PeersMap {
 
     pub fn insert_or_get(&mut self, key: String) -> usize {
         if let Some(&existing_value) = self.map.get(&key) {
-            return existing_value; 
+            return existing_value;
         }
 
         self.map.insert(key.clone(), self.max_value);

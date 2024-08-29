@@ -1,20 +1,25 @@
-use std::collections::HashMap;
-use std::f64::INFINITY;
-use crate::sparse::entry::Entry;
-use crate::sparse::matrix::{ CSMatrix, CSRMatrix };
-use crate::sparse::vector::Vector;
-use crate::basic::trustvector::read_trust_vector_from_csv;
-use crate::basic::localtrust::{ canonicalize_local_trust, read_local_trust_from_csv, extract_distrust };
-use crate::basic::trustvector::canonicalize_trust_vector;
 use crate::basic::eigentrust::compute;
 use crate::basic::eigentrust::discount_trust_vector;
+use crate::basic::localtrust::{
+    canonicalize_local_trust, extract_distrust, read_local_trust_from_csv,
+};
+use crate::basic::trustvector::canonicalize_trust_vector;
+use crate::basic::trustvector::read_trust_vector_from_csv;
+use crate::sparse::entry::Entry;
+use crate::sparse::matrix::{CSMatrix, CSRMatrix};
+use crate::sparse::vector::Vector;
+use std::collections::HashMap;
+use std::f64::INFINITY;
 
-pub fn calculate_from_csv(localtrust_csv: &str, pretrust_csv: &str) -> Result<Vec<(String, f64)>, String> {
+pub fn calculate_from_csv(
+    localtrust_csv: &str,
+    pretrust_csv: &str,
+) -> Result<Vec<(String, f64)>, String> {
     let e = 1.25e-7;
     let a = 0.5;
 
-    let (mut local_trust, mut peers) = read_local_trust_from_csv(&localtrust_csv).unwrap();  
-    
+    let (mut local_trust, mut peers) = read_local_trust_from_csv(&localtrust_csv).unwrap();
+
     let mut peer_indices = peers.map;
 
     let mut pre_trust = read_trust_vector_from_csv(pretrust_csv, &peer_indices).unwrap();
@@ -26,9 +31,9 @@ pub fn calculate_from_csv(localtrust_csv: &str, pretrust_csv: &str) -> Result<Ve
     } else {
         pre_trust.set_dim(c_dim);
     }
-    
+
     canonicalize_trust_vector(&mut pre_trust);
-    
+
     let mut discounts = extract_distrust(&mut local_trust).unwrap();
 
     canonicalize_local_trust(&mut local_trust, Some(pre_trust.clone())).unwrap();
@@ -37,27 +42,7 @@ pub fn calculate_from_csv(localtrust_csv: &str, pretrust_csv: &str) -> Result<Ve
     let mut trust_scores = compute(&local_trust, &pre_trust, a, e, None, None).unwrap();
     discount_trust_vector(&mut trust_scores, &discounts)?;
 
-    
     let mut entries = vec![];
-
-    /*
-    for i in 0..dim {
-        let name = peer_names.as_ref().map_or_else(
-            || format!("Peer {}", i),
-            |names| names[i].clone(),
-        );
-        entries.push(Entry::new(i, name));
-    }
-    */
-    /*
-    for e in &trust_scores {
-        let e = Entry{ value: e.score}
-        entries[e.index].score = e.score;
-        entries[e.index].score_log = e.score.log10();
-    }
-
-    entries.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
-    */
 
     for e in &trust_scores.entries {
         let name_ref = peers.map_reversed.get(&e.index).unwrap();
@@ -65,7 +50,7 @@ pub fn calculate_from_csv(localtrust_csv: &str, pretrust_csv: &str) -> Result<Ve
         entries.push((name, e.value));
     }
 
-    // entries.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+    entries.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
 
-    Ok(entries) 
+    Ok(entries)
 }

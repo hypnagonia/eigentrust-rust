@@ -11,8 +11,8 @@ use crate::basic::engine::calculate_from_csv;
 pub mod basic;
 pub mod sparse;
 use std::panic;
-use web_sys::console;
 use std::str;
+use web_sys::console;
 
 #[wasm_bindgen]
 pub fn run(localtrust_csv: &[u8], pretrust_csv: &[u8]) -> String {
