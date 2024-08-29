@@ -1,3 +1,8 @@
 /target
-tmp
+*.bak
 .firebase
+.firebase/*
+tmp
+firebase
+*.log
+

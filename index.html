@@ -1,28 +1,163 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rust WebAssembly Example</title>
+    <title>Eigentrust WASM implementation</title>
+    <style>
+        #calculate {
+            padding: 10px;
+            text-transform: uppercase;
+            border-radius: 5px;
+            background-color: yellow;
+            color: black;
+            cursor: pointer;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+
+        }
+
+        .container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            max-height: 600px;
+        }
+
+        .container2 {
+            border-top: 1px solid #ccc;
+            border-bottom: 1px solid #ccc;
+            width: 100%;
+            height: 100%;
+            max-height: 600px;
+            padding: 20px;
+        }
+
+
+        .upload-section {
+            flex: 1;
+            padding: 20px;
+            box-sizing: border-box;
+            border-right: 1px solid #ccc;
+            overflow-y: auto;
+        }
+
+        .upload-section:last-child {
+            border-right: none;
+        }
+
+        h1 {
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+
+        pre {
+            background-color: #f4f4f4;
+            padding: 10px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            border: 1px solid #ddd;
+        }
+    </style>
 </head>
+
 <body>
-    <h1>Rust WebAssembly 2 + 2 Example</h1>
-    <button id="calculate">Calculate 2 + 2</button>
-    <p>Result: <span id="result"></span></p>
+    <div class="container2">
+        <h1>WASM Rust Eigentrust</h1>
+    </div>
+    <div class="container">
+        <div class="upload-section" id="localTrustSection">
+            <h2>Local Trust</h2>
+            <input type="file" id="localTrustInput" accept=".csv">
+            
+            <pre id="localTrustContent">Upload Local Trust CSV</pre>
+        </div>
+        <div class="upload-section" id="preTrustSection">
+            <h2>Seed Trust</h2>
+            <input type="file" id="preTrustInput" accept=".csv">
+            
+            <pre id="preTrustContent">Upload Seed Trust CSV</pre>
+        </div>
+
+    </div>
+
+    <div class="container2">
+        <button id="calculate">Run Job</button>
+
+        <pre>
+        <span id="result"></span>[]</pre>
+    </div>
+
 
     <script type="module">
-        import init, { add } from './pkg/eigentrust_js.js'
-        console.log(add)
-        async function run() {
-            await init()
+        let localtrustBytes
+        let pretrustBytes
 
+        document.getElementById('localTrustInput').addEventListener('change', async function (event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const csvText = e.target.result;
+                if (csvText.length < 100000) {
+                    document.getElementById('localTrustContent').textContent = csvText;
+                } else {
+                    document.getElementById('localTrustContent').textContent = 'Local trust Loaded';
+                }
+
+                localtrustBytes = new TextEncoder().encode(csvText);
+            };
+
+            reader.readAsText(file);
+        });
+
+        // Handle PreTrust file upload and display
+        document.getElementById('preTrustInput').addEventListener('change', async function (event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const csvText = e.target.result;
+                if (csvText.length < 100000) {
+                    document.getElementById('preTrustContent').textContent = csvText;
+                } else {
+                    document.getElementById('preTrustContent').textContent = 'Seed trust loaded';
+                }
+
+                pretrustBytes = new TextEncoder().encode(csvText);
+            };
+
+            reader.readAsText(file);
+        });
+
+
+        import init, { run, prepare } from './pkg/eigentrust_rs.js'
+        init().then(prepare)
+    
+        async function main() {
             document.getElementById('calculate').addEventListener('click', () => {
-                const result = add(BigInt(2), BigInt(2))
-                document.getElementById('result').textContent = result
+                if (!localtrustBytes || !pretrustBytes) {
+                    alert('add localtrust and pretrust')
+                    return
+                }
+
+                console.time("eigentrust job")
+                const result = run(localtrustBytes, pretrustBytes)
+                console.timeEnd("eigentrust job")
+
+                document.getElementById('result').innerHTML = result
             })
         }
 
-        run()
+        main()
     </script>
 </body>
+
 </html>
