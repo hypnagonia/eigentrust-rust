@@ -13,18 +13,24 @@ pub fn calculate() -> Result<Vec<Entry>, String> {
     let e = 1.25e-7;
     let a = 0.5;
     let localtrust_csv = "0,1,11.31571\n2,3,269916.08616\n4,5,3173339.366896588\n6,5,46589750.00759474\n";
-    let pretrust_csv = "0,0.14285714285714285\n1,0.14285714285714285\n2,0.14285714285714285\n3,0.14285714285714285\n4,0.14285714285714285\n5,0.14285714285714285\n6,0.14285714285714285\n";
+    // let pretrust_csv = "0,0.14285714285714285\n1,0.14285714285714285\n2,0.14285714285714285\n3,0.14285714285714285\n4,0.14285714285714285\n5,0.14285714285714285\n6,0.14285714285714285\n";
+    let pretrust_csv = "0,0.14285714285714285\n";
 
-    // let peer_indices = peer_indices.clone();
     let (mut local_trust, mut peer_indices) = read_local_trust_from_csv(&localtrust_csv).unwrap();  
     let mut pre_trust = read_trust_vector_from_csv(pretrust_csv, &peer_indices).unwrap();
 
+    let c_dim = local_trust.cs_matrix.dim().unwrap();
+    let p_dim = pre_trust.dim;
+    if c_dim < p_dim {
+        local_trust.set_dim(p_dim, p_dim);
+    } else {
+        pre_trust.set_dim(c_dim);
+    }
 
-    
+    /*
     let lt_dim = local_trust.cs_matrix.entries.len();
     let mut dim = lt_dim;
 
-    /*
     if peer_names.len() > 0 {
         let n = peer_names.len();
         if lt_dim < n {
@@ -72,7 +78,6 @@ pub fn calculate() -> Result<Vec<Entry>, String> {
 
     let mut entries = vec![];
     for e in &trust_scores.entries {
-        
         entries.push(Entry::new(e.index, e.value));
     }
 
@@ -80,94 +85,3 @@ pub fn calculate() -> Result<Vec<Entry>, String> {
 
     Ok(entries) 
 }
-
-
-
-/* 
-fn calculate(
-    peer_names: Vec<String>,
-    localtrust_csv: &str,
-    pretrust_csv: &str,
-    hunch_percent: f64,
-) -> Result<Vec<Entry>, String> {
-    let e = 1.25e-7;
-    let a = 0.5;
-
-    let mut peer_indices = HashMap::new();
-    peer_indices.insert("0".to_string(), 0);
-    peer_indices.insert("1".to_string(), 1);
-    peer_indices.insert("2".to_string(), 2);
-    peer_indices.insert("3".to_string(), 3);
-    peer_indices.insert("4".to_string(), 4);
-    peer_indices.insert("5".to_string(), 5);
-    peer_indices.insert("6".to_string(), 6);
-
-    let peer_indices2 = peer_indices.clone();
-    let mut local_trust = read_local_trust_from_csv(&localtrust_csv, peer_indices).unwrap();  
-    let mut pre_trust = read_trust_vector_from_csv(pretrust_csv, &peer_indices2).unwrap();
-
-    let lt_dim = local_trust.cs_matrix.entries.len();
-    let mut dim = lt_dim;
-
-    if peer_names.len() > 0 {
-        let n = peer_names.len();
-        if lt_dim < n {
-            dim = n;
-        } else if lt_dim > n {
-            return Err("localTrust is larger than peerNames".into());
-        }
-
-        let pt_dim = pre_trust.entries.len();
-        if pt_dim < n {
-            // Resize pre_trust if needed
-        } else if pt_dim > n {
-            return Err("preTrust is larger than peerNames".into());
-        }
-    }
-
-    canonicalize_trust_vector(&mut pre_trust);
-
-    let mut discounts = extract_distrust(&mut local_trust).unwrap();
-
-    println!("local\n{:?}\n", local_trust);
-    println!("pretrust\n{:?}\n", pre_trust);
-
-    canonicalize_local_trust(&mut local_trust, Some(pre_trust.clone())).unwrap();
-
-
-    canonicalize_local_trust(&mut discounts, None).unwrap();
-
-
-
-    let trust_scores = compute(&local_trust, &pre_trust, a, e, None, None).unwrap();
-
-    /* 
-    // Compute trust scores (stub function, implement as needed)
-    // 
-
-    // Discount trust scores (stub function, implement as needed)
-    // discount_trust_vector(&trust_scores, &discounts)?;
-
-    let mut entries = vec![];
-    for i in 0..dim {
-        let name = peer_names.as_ref().map_or_else(
-            || format!("Peer {}", i),
-            |names| names[i].clone(),
-        );
-        entries.push(Entry::new(i, name));
-    }
-
-    for e in &trust_scores {
-        entries[e.index].score = e.score;
-        entries[e.index].score_log = e.score.log10();
-    }
-
-    entries.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
-
-    Ok(entries) 
-    */
-    let mut entries2 = vec![];
-    Ok(entries2)
-}
-
-*/

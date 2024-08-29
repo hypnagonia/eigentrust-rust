@@ -13,7 +13,8 @@ pub fn canonicalize_local_trust(
     let n = local_trust.dims().0;
 
     if let Some(ref pre_trust_vec) = pre_trust {
-        if pre_trust_vec.entries.len() != n {
+        // if pre_trust_vec.entries.len() != n {
+        if pre_trust_vec.entries.len() > n {
             return Err("Dimension mismatch".to_string());
         }
     }
