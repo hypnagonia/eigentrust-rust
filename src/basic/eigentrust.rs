@@ -152,7 +152,7 @@ pub fn compute(
     let mut flat_tail_checker = FlatTailChecker::new(min_iterations.unwrap_or(1), n);
 
     let mut iter = 0;
-    let max_iters = max_iterations.unwrap_or(40); // usize::MAX
+    let max_iters = max_iterations.unwrap_or(usize::MAX);
     let min_iters = min_iterations.unwrap_or(1);
 
     while iter < max_iters {

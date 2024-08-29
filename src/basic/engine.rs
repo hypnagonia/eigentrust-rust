@@ -15,9 +15,10 @@ use super::util::strip_headers;
 pub fn calculate_from_csv(
     localtrust_csv: &str,
     pretrust_csv: &str,
+    alpha: Option<f64>
 ) -> Result<Vec<(String, f64)>, String> {
     let e = 1.25e-7;
-    let a = 0.5;
+    let a = alpha.unwrap_or(0.5);
 
     let localtrust_csv = strip_headers(localtrust_csv);
     let pretrust_csv = strip_headers(pretrust_csv);
