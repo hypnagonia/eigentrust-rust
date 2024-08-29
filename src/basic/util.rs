@@ -1,16 +1,28 @@
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
-use web_sys::console;
 
-// todo logger
 #[cfg(target_arch = "wasm32")]
-pub fn log_message(message: &str) {
-    console::log_1(&message.into());
-}
+use console_log;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn log_message(message: &str) {
-    println!("{}", message);
+use env_logger;
+
+use log::Level;
+
+pub fn init_logger() {
+    #[cfg(target_arch = "wasm32")]
+    {
+        console_log::init_with_level(Level::Info).expect("Failed to initialize logger");
+        log::debug!("Logger initialized for WebAssembly");
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        env_logger::builder()
+            .filter_level(log::LevelFilter::Debug)
+            .init();
+        log::debug!("Logger initialized for native environment");
+    }
 }
 
 pub struct PeersMap {

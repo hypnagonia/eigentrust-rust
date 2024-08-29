@@ -1,4 +1,3 @@
-use super::util::log_message;
 use super::util::PeersMap;
 use crate::sparse::entry::Entry;
 use crate::sparse::matrix::{CSMatrix, CSRMatrix};
@@ -8,7 +7,6 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::f64;
 use wasm_bindgen::prelude::*;
-use web_sys::console;
 
 // Canonicalize scales sparse entries in-place so that their values sum to one.
 // If entries sum to zero, Canonicalize returns an error indicating a zero-sum vector.
@@ -189,7 +187,7 @@ pub fn compute(
             iter
         );
 
-        log_message(&message);
+        log::info!("{:?}",&message);
 
         iter += 1;
     }
