@@ -3,8 +3,8 @@ use crate::sparse::entry::CooEntry;
 use crate::sparse::matrix::CSRMatrix;
 use crate::sparse::vector::Vector;
 use wasm_bindgen::prelude::*;
-
 use std::collections::HashMap;
+use super::util::PeersMap;
 
 pub fn canonicalize_local_trust(
     local_trust: &mut CSRMatrix,
@@ -70,7 +70,7 @@ pub fn extract_distrust(local_trust: &mut CSRMatrix) -> Result<CSRMatrix, String
 
 fn parse_csv_line(
     line: &str,
-    peer_indices: &mut MaxValueHashMap
+    peer_indices: &mut PeersMap
 ) -> Result<(usize, usize, f64), String> {
     let fields: Vec<&str> = line.split(',').collect();
 
@@ -87,12 +87,11 @@ fn parse_csv_line(
     Ok((from, to, level))
 }
 
-pub fn read_local_trust_from_csv(csv_data: &str) -> Result<(CSRMatrix, HashMap<String, usize>), String> {
+pub fn read_local_trust_from_csv(csv_data: &str) -> Result<(CSRMatrix, PeersMap), String> {
     let mut entries: Vec<(usize, usize, f64)> = Vec::new();
     let mut max_from = 0;
     let mut max_to = 0;
-
-    let mut peer_indices = MaxValueHashMap::new();
+    let mut peer_indices = PeersMap::new();
 
     for (count, line) in csv_data.lines().enumerate() {
         let parsed_result = parse_csv_line(line, &mut peer_indices);
@@ -105,7 +104,6 @@ pub fn read_local_trust_from_csv(csv_data: &str) -> Result<(CSRMatrix, HashMap<S
                     max_to = to;
                 }
 
-                println!("{:?} {:?} {:?}", from, to, level);
                 entries.push((from, to, level));
             }
             Err(e) => {
@@ -122,36 +120,7 @@ pub fn read_local_trust_from_csv(csv_data: &str) -> Result<(CSRMatrix, HashMap<S
     }
 
     let dim = max_from.max(max_to) + 1;
-    Ok((CSRMatrix::new(dim, dim, entries), peer_indices.map))
-}
-
-struct MaxValueHashMap {
-    pub map: HashMap<String, usize>,
-    pub max_value: usize,
-}
-
-impl MaxValueHashMap {
-    fn new() -> Self {
-        MaxValueHashMap {
-            map: HashMap::new(),
-            max_value: 0,
-        }
-    }
-
-    pub fn insert_or_get(&mut self, key: String) -> usize {
-        if let Some(&existing_value) = self.map.get(&key) {
-            return existing_value; 
-        }
-
-        self.map.insert(key.clone(), self.max_value);
-
-        self.max_value += 1;
-        self.max_value - 1
-    }
-
-    fn get_max_value(&self) -> usize {
-        self.max_value
-    }
+    Ok((CSRMatrix::new(dim, dim, entries), peer_indices))
 }
 
 #[cfg(test)]

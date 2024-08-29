@@ -6,8 +6,9 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::f64;
 use wasm_bindgen::prelude::*;
-
 use web_sys::console;
+use super::util::log_message;
+use super::util::PeersMap;
 
 // Canonicalize scales sparse entries in-place so that their values sum to one.
 // If entries sum to zero, Canonicalize returns an error indicating a zero-sum vector.
@@ -121,16 +122,6 @@ pub struct FlatTailStats {
     pub ranking: Vec<usize>,
 }
 
-#[cfg(target_arch = "wasm32")]
-pub fn log_message(message: &str) {
-    console::log_1(&message.into());
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub fn log_message(message: &str) {
-    println!("{}", message);
-}
-
 // Compute function implements the EigenTrust algorithm.
 // todo Error instead of String
 pub fn compute(
@@ -189,7 +180,6 @@ pub fn compute(
         new_t1.scale_vec(1.0 - a, &t2_clone);
         t1.add_vec(&new_t1, &ap)?;
 
-        // console::log_1(&"Hello from Rust!".into());
         let message = format!(
             "finished: dim = {}, nnz = {}, alpha = {}, epsilon = {}, iterations = {}",
             n,

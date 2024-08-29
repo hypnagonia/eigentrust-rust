@@ -1,5 +1,7 @@
 ## Rust (WASM) port of Eigentrust
 
+## Live Demo
+(https://eigentrust.web.app/)[https://eigentrust.web.app/]
 
 ## test
 ```

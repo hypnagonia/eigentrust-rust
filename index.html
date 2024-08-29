@@ -4,8 +4,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CSV Upload - LocalTrust and PreTrust</title>
+    <title>Eigentrust WASM implementation</title>
     <style>
+        #calculate {
+            padding: 10px;
+            text-transform: uppercase;
+            border-radius: 5px;
+            background-color: yellow;
+            color: black;
+            cursor: pointer;
+        }
+
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -21,6 +30,7 @@
         }
 
         .container2 {
+            border-top: 1px solid #ccc;
             width: 100%;
             height: 100%;
             max-height: 600px;
@@ -60,13 +70,13 @@
         <div class="upload-section" id="localTrustSection">
             <h1>Upload LocalTrust CSV</h1>
             <input type="file" id="localTrustInput" accept=".csv">
-            <h2>LocalTrust CSV Content:</h2>
+            <h2>LocalTrust:</h2>
             <pre id="localTrustContent"></pre>
         </div>
         <div class="upload-section" id="preTrustSection">
             <h1>Upload PreTrust CSV</h1>
             <input type="file" id="preTrustInput" accept=".csv">
-            <h2>PreTrust CSV Content:</h2>
+            <h2>PreTrust:</h2>
             <pre id="preTrustContent"></pre>
         </div>
 
@@ -75,8 +85,6 @@
     <div class="container2">
         <button id="calculate">Run Job</button>
 
-
-        <p>Result:</p>
         <pre>
         <span id="result"></span></pre>
     </div>
@@ -93,7 +101,11 @@
             const reader = new FileReader();
             reader.onload = function (e) {
                 const csvText = e.target.result;
-                document.getElementById('localTrustContent').textContent = csvText;
+                if (csvText.length < 1000) {
+                    document.getElementById('localTrustContent').textContent = csvText;
+                } else {
+                    document.getElementById('localTrustContent').textContent = csvText.length + ' records';
+                }
 
                 localtrustBytes = new TextEncoder().encode(csvText);
             };
@@ -109,7 +121,11 @@
             const reader = new FileReader();
             reader.onload = function (e) {
                 const csvText = e.target.result;
-                document.getElementById('preTrustContent').textContent = csvText;
+                if (csvText.length < 1000) {
+                    document.getElementById('preTrustContent').textContent = csvText;
+                } else {
+                    document.getElementById('preTrustContent').textContent = csvText.length + ' records';
+                }
 
                 pretrustBytes = new TextEncoder().encode(csvText);
             };
