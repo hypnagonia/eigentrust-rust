@@ -29,12 +29,12 @@ import init, { run } from './pkg/eigentrust_js.js'
         console.log({result})
     }
 
-    main()
+main()
 ```
 
 ## run OS native
 ```
-cargo run
+cargo run ./example/localtrust.csv ./example/pretrust2.csv
 ```
 
 ## test web??
