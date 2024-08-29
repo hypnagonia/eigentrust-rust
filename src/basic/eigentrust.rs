@@ -123,14 +123,19 @@ pub struct FlatTailStats {
 
 // Compute function implements the EigenTrust algorithm.
 // todo Error instead of String
-pub fn compute(
-    c: &CSRMatrix,
-    p: &Vector,
+pub fn compute<'a>(
+    mut c: &CSRMatrix,
+    mut p: &Vector,
     a: f64,
     e: f64,
     max_iterations: Option<usize>,
     min_iterations: Option<usize>,
 ) -> Result<Vector, String> {
+
+
+    log::info!("Running compute");
+
+
     let n = c.cs_matrix.major_dim;
     if n == 0 {
         return Err("Empty local trust matrix".to_string());
@@ -142,18 +147,20 @@ pub fn compute(
 
     let t0 = current_time_millis();
 
-    let mut t = p.clone();
+    // let mut t = p;
     let mut t1 = p.clone();
     let ct = c.transpose()?;
     let mut ap = p.clone();
     ap.scale_vec(a, p);
 
-    let mut conv_checker = ConvergenceChecker::new(&t, e);
+    let mut conv_checker = ConvergenceChecker::new(&t1, e);
     let mut flat_tail_checker = FlatTailChecker::new(min_iterations.unwrap_or(1), n);
 
     let mut iter = 0;
     let max_iters = max_iterations.unwrap_or(usize::MAX);
     let min_iters = min_iterations.unwrap_or(1);
+
+    log::info!("Iterating");
 
     while iter < max_iters {
         let iter_t0 = current_time_millis();
@@ -169,12 +176,15 @@ pub fn compute(
             break;
         }
 
+        println!("conv_checker.converged() iter={:?} d={:?} e={:?}", conv_checker.iter, conv_checker.d, conv_checker.e);
+        println!("flat_tail_checker.reached()  {:?}",flat_tail_checker.reached() );
         //
         if iter >= min_iters && conv_checker.converged() {
             // && flat_tail_checker.reached() {
             break;
         }
 
+        // todo get rid of cloning?
         let t1_clone = t1.clone();
         let mut new_t1 = t1.clone();
         new_t1.mul_vec(&ct, &t1_clone)?;

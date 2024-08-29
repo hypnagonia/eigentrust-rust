@@ -7,7 +7,7 @@ use super::matrix::CSRMatrix;
 use serde::Serialize;
 use std::thread;
 use wasm_bindgen_futures::spawn_local;
-
+use super::util::KBNSummer;
 /*
 todo compile os native and wasm. use multithreading in native env
 #[cfg(not(target_arch = "wasm32"))]
@@ -242,7 +242,7 @@ impl Vector {
 
         for row in 0..dim {
             let product = vec_dot(&m.row_vector(row), &v1);
-
+            
             if product != 0.0 {
                 entries.push(Entry {
                     index: row,
@@ -250,15 +250,16 @@ impl Vector {
                 });
             }
         }
+
         entries.sort_by_key(|e| e.index);
         self.dim = dim;
         self.entries = entries;
-
+        
         Ok(())
     }
 
-    // can't be normally used in web assembly env.
-    pub fn multithreading_mul_vec(&mut self, m: &CSRMatrix, v1: &Vector) -> Result<(), String> {
+    // can't be normally used in web assembly env. currently broken and slower than single-threaded
+    pub fn multithread_mul_vec(&mut self, m: &CSRMatrix, v1: &Vector) -> Result<(), String> {
         let dim = m.cs_matrix.dim()?; // Get the dimension of the matrix.
         if dim != v1.dim {
             return Err("Dimension mismatch".to_string());
@@ -310,24 +311,30 @@ impl Vector {
     }
 }
 
+// todo bottleneck
 pub fn vec_dot(v1: &Vector, v2: &Vector) -> f64 {
-    let mut sum = 0.0;
-    let mut i2 = 0;
     let n2 = v2.entries.len();
     if n2 == 0 {
         return 0.0;
     }
 
+    let mut i2 = 0;
+    let mut summer = KBNSummer::new();
+
     for e1 in &v1.entries {
         while i2 < n2 && v2.entries[i2].index <= e1.index {
-            if e1.index == v2.entries[i2].index {
-                sum += e1.value * v2.entries[i2].value;
+            if v2.entries[i2].index == e1.index {
+                let value = e1.value * v2.entries[i2].value;
+                summer.add(value);
             }
             i2 += 1;
+            if i2 == n2 {
+                return summer.sum();
+            }
         }
     }
 
-    sum
+    summer.sum()
 }
 
 #[cfg(test)]

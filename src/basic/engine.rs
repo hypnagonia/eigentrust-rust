@@ -17,19 +17,21 @@ pub fn calculate_from_csv(
     pretrust_csv: &str,
     alpha: Option<f64>
 ) -> Result<Vec<(String, f64)>, String> {
-    let e = 1.25e-7;
+    // let e = 1.25e-7;
     let a = alpha.unwrap_or(0.5);
 
     let localtrust_csv = strip_headers(localtrust_csv);
     let pretrust_csv = strip_headers(pretrust_csv);
 
-    let (mut local_trust, mut peers) = read_local_trust_from_csv(&localtrust_csv).unwrap();
+    let (mut local_trust, peers) = read_local_trust_from_csv(&localtrust_csv).unwrap();
 
     let mut peer_indices = peers.map;
 
     let mut pre_trust = read_trust_vector_from_csv(pretrust_csv, &peer_indices).unwrap();
 
     let c_dim = local_trust.cs_matrix.dim().unwrap();
+    let e = 1e-6 / c_dim as f64;
+
     let p_dim = pre_trust.dim;
     if c_dim < p_dim {
         local_trust.set_dim(p_dim, p_dim);
@@ -45,7 +47,10 @@ pub fn calculate_from_csv(
     canonicalize_local_trust(&mut discounts, None).unwrap();
 
     let mut trust_scores = compute(&local_trust, &pre_trust, a, e, None, None).unwrap();
-    discount_trust_vector(&mut trust_scores, &discounts)?;
+
+    // todo get rid!
+    let mut trust_scores2 = trust_scores.clone();
+    discount_trust_vector(&mut trust_scores2, &discounts)?;
 
     let mut entries = vec![];
 
