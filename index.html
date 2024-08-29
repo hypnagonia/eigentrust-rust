@@ -134,10 +134,10 @@
         });
 
 
-        import init, { run } from './pkg/eigentrust_js.js'
-
+        import init, { run, prepare } from './pkg/eigentrust_rs.js'
+        init().then(prepare)
+    
         async function main() {
-            await init()
             document.getElementById('calculate').addEventListener('click', () => {
                 if (!localtrustBytes || !pretrustBytes) {
                     alert('add localtrust and pretrust')

@@ -1,11 +1,4 @@
 use wasm_bindgen::prelude::*;
-
-use crate::basic::eigentrust::compute;
-use crate::basic::localtrust::canonicalize_local_trust;
-use crate::sparse::entry::Entry;
-use crate::sparse::matrix::{CSMatrix, CSRMatrix};
-use crate::sparse::vector::Vector;
-
 use crate::basic::engine::calculate_from_csv;
 
 pub mod basic;
@@ -14,13 +7,15 @@ use std::panic;
 use std::str;
 use crate::basic::util::init_logger;
 
+#[wasm_bindgen]
+pub fn prepare() {
+    panic::set_hook(Box::new(console_error_panic_hook::hook));
+    init_logger();    
+    log::info!("WASM Eigentrust connected");
+} 
 
 #[wasm_bindgen]
 pub fn run(localtrust_csv: &[u8], pretrust_csv: &[u8]) -> String {
-    panic::set_hook(Box::new(console_error_panic_hook::hook));
-    init_logger();
-    log::info!("WASM Eigentrust connected");
-
     let lt = str::from_utf8(localtrust_csv).unwrap();
     let pt = str::from_utf8(pretrust_csv).unwrap();
 
