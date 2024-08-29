@@ -7,13 +7,13 @@ use std::fmt;
 // CanonicalizeTrustVector canonicalizes the trust vector in-place,
 // scaling it so that the elements sum to one,
 // or making it a uniform vector that sums to one if it's a zero vector.
-pub fn canonicalize_trust_vector(v: &mut Vec<Entry>) {
-    if canonicalize(v).is_err() {
-        let dim = v.len();
+pub fn canonicalize_trust_vector(v: &mut Vector) {
+    if canonicalize(&mut v.entries).is_err() {
+        let dim = v.entries.len();
         let c = 1.0 / dim as f64;
-        v.clear();
+        v.entries.clear();
         for i in 0..dim {
-            v.push(Entry { index: i, value: c });
+            v.entries.push(Entry { index: i, value: c });
         }
     }
 }

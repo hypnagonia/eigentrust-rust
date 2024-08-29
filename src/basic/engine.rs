@@ -1,251 +1,173 @@
-use crate::basic::eigentrust::compute;
-use crate::basic::localtrust::{canonicalize_local_trust, read_local_trust_from_csv};
-use crate::basic::trustvector::read_trust_vector_from_csv;
-use crate::sparse::entry::Entry;
-use crate::sparse::matrix::{CSMatrix, CSRMatrix};
-use crate::sparse::vector::Vector;
-use getrandom::getrandom;
 use std::collections::HashMap;
-use wasm_bindgen::prelude::*;
+use std::f64::INFINITY;
+use crate::sparse::entry::Entry;
+use crate::sparse::matrix::{ CSMatrix, CSRMatrix };
+use crate::sparse::vector::Vector;
+use crate::basic::trustvector::read_trust_vector_from_csv;
+use crate::basic::localtrust::{ canonicalize_local_trust, read_local_trust_from_csv, extract_distrust };
+use crate::basic::trustvector::canonicalize_trust_vector;
+use crate::basic::eigentrust::compute;
+use crate::basic::eigentrust::discount_trust_vector;
 
-fn generate_random_f64(min: f64, max: f64) -> f64 {
-    let mut buf = [0u8; 8];
-    getrandom(&mut buf).expect("Failed to get random bytes");
-    let rand_u64 = u64::from_le_bytes(buf);
-    let scale = (rand_u64 as f64) / (u64::MAX as f64);
-    min + scale * (max - min)
-}
+pub fn calculate() -> Result<Vec<Entry>, String> {
+    let e = 1.25e-7;
+    let a = 0.5;
+    let localtrust_csv = "0,1,11.31571\n2,3,269916.08616\n4,5,3173339.366896588\n6,5,46589750.00759474\n";
+    let pretrust_csv = "0,0.14285714285714285\n1,0.14285714285714285\n2,0.14285714285714285\n3,0.14285714285714285\n4,0.14285714285714285\n5,0.14285714285714285\n6,0.14285714285714285\n";
 
-fn generate_csv_data(num_records: usize) -> (String, HashMap<String, usize>) {
-    let mut csv_data = String::new();
-    let mut peer_indices = HashMap::new();
+    // let peer_indices = peer_indices.clone();
+    let (mut local_trust, mut peer_indices) = read_local_trust_from_csv(&localtrust_csv).unwrap();  
+    let mut pre_trust = read_trust_vector_from_csv(pretrust_csv, &peer_indices).unwrap();
 
-    for i in 0..num_records {
-        let from = (i + 1) % 1000;
-        let to = i % 100;
-        let level = generate_random_f64(0.01, 1.0);
 
-        csv_data.push_str(&format!("{},{},{}\n", from, to, level));
+    
+    let lt_dim = local_trust.cs_matrix.entries.len();
+    let mut dim = lt_dim;
 
-        peer_indices.entry(from.to_string()).or_insert(from);
-        peer_indices.entry(to.to_string()).or_insert(to);
+    /*
+    if peer_names.len() > 0 {
+        let n = peer_names.len();
+        if lt_dim < n {
+            dim = n;
+        } else if lt_dim > n {
+            return Err("localTrust is larger than peerNames".into());
+        }
+
+        let pt_dim = pre_trust.entries.len();
+        if pt_dim < n {
+            // Resize pre_trust if needed
+        } else if pt_dim > n {
+            return Err("preTrust is larger than peerNames".into());
+        }
+    }
+    */
+    
+    canonicalize_trust_vector(&mut pre_trust);
+    
+    let mut discounts = extract_distrust(&mut local_trust).unwrap();
+
+    canonicalize_local_trust(&mut local_trust, Some(pre_trust.clone())).unwrap();
+    canonicalize_local_trust(&mut discounts, None).unwrap();
+
+    let mut trust_scores = compute(&local_trust, &pre_trust, a, e, None, None).unwrap();
+    discount_trust_vector(&mut trust_scores, &discounts)?;
+
+    /* 
+    let mut entries = vec![];
+    for i in 0..dim {
+        let name = peer_names.as_ref().map_or_else(
+            || format!("Peer {}", i),
+            |names| names[i].clone(),
+        );
+        entries.push(Entry::new(i, name));
     }
 
-    (csv_data, peer_indices)
+    for e in &trust_scores {
+        entries[e.index].score = e.score;
+        entries[e.index].score_log = e.score.log10();
+    }
+
+    entries.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+    */
+
+    let mut entries = vec![];
+    for e in &trust_scores.entries {
+        
+        entries.push(Entry::new(e.index, e.value));
+    }
+
+    // entries.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+
+    Ok(entries) 
 }
 
-pub fn calculate() -> Result<Vector, String> {
+
+
+/* 
+fn calculate(
+    peer_names: Vec<String>,
+    localtrust_csv: &str,
+    pretrust_csv: &str,
+    hunch_percent: f64,
+) -> Result<Vec<Entry>, String> {
     let e = 1.25e-7;
     let a = 0.5;
 
-    // let (csv_data, peer_indices) = generate_csv_data(1000_000);
-
-    let csv_data = "0,1,11.31571\n2,3,269916.08616\n4,5,3173339.366896588\n6,5,46589750.00759474\n";
     let mut peer_indices = HashMap::new();
+    peer_indices.insert("0".to_string(), 0);
+    peer_indices.insert("1".to_string(), 1);
+    peer_indices.insert("2".to_string(), 2);
+    peer_indices.insert("3".to_string(), 3);
+    peer_indices.insert("4".to_string(), 4);
+    peer_indices.insert("5".to_string(), 5);
+    peer_indices.insert("6".to_string(), 6);
 
-    for (index, line) in csv_data.lines().enumerate() {
-        let mut fields = line.split(',');
+    let peer_indices2 = peer_indices.clone();
+    let mut local_trust = read_local_trust_from_csv(&localtrust_csv, peer_indices).unwrap();  
+    let mut pre_trust = read_trust_vector_from_csv(pretrust_csv, &peer_indices2).unwrap();
 
-        if let (Some(from), Some(to)) = (fields.next(), fields.next()) {
-            peer_indices.entry(from.to_string()).or_insert(index);
-            peer_indices.entry(to.to_string()).or_insert(index);
+    let lt_dim = local_trust.cs_matrix.entries.len();
+    let mut dim = lt_dim;
+
+    if peer_names.len() > 0 {
+        let n = peer_names.len();
+        if lt_dim < n {
+            dim = n;
+        } else if lt_dim > n {
+            return Err("localTrust is larger than peerNames".into());
+        }
+
+        let pt_dim = pre_trust.entries.len();
+        if pt_dim < n {
+            // Resize pre_trust if needed
+        } else if pt_dim > n {
+            return Err("preTrust is larger than peerNames".into());
         }
     }
-    let peer_indices2 = peer_indices.clone();
 
-    let c2 = read_local_trust_from_csv(&csv_data, peer_indices).unwrap();
-    let p2 = read_trust_vector_from_csv(&csv_data, &peer_indices2).unwrap();
+    canonicalize_trust_vector(&mut pre_trust);
 
-    println!("{:?}\n {:?}\n", c2, p2);
+    let mut discounts = extract_distrust(&mut local_trust).unwrap();
 
-    let c = CSRMatrix {
-        cs_matrix: CSMatrix {
-            major_dim: 8,
-            minor_dim: 8,
-            entries: vec![
-                vec![Entry {
-                    index: 3,
-                    value: 1.0,
-                }],
-                vec![
-                    Entry {
-                        index: 0,
-                        value: 0.14285714285714285,
-                    },
-                    Entry {
-                        index: 1,
-                        value: 0.14285714285714285,
-                    },
-                    Entry {
-                        index: 2,
-                        value: 0.14285714285714285,
-                    },
-                    Entry {
-                        index: 3,
-                        value: 0.14285714285714285,
-                    },
-                    Entry {
-                        index: 4,
-                        value: 0.14285714285714285,
-                    },
-                    Entry {
-                        index: 5,
-                        value: 0.14285714285714285,
-                    },
-                    Entry {
-                        index: 6,
-                        value: 0.14285714285714285,
-                    },
-                ],
-                vec![Entry {
-                    index: 3,
-                    value: 1.0,
-                }],
-                vec![
-                    Entry {
-                        index: 0,
-                        value: 0.14285714285714285,
-                    },
-                    Entry {
-                        index: 1,
-                        value: 0.14285714285714285,
-                    },
-                    Entry {
-                        index: 2,
-                        value: 0.14285714285714285,
-                    },
-                    Entry {
-                        index: 3,
-                        value: 0.14285714285714285,
-                    },
-                    Entry {
-                        index: 4,
-                        value: 0.14285714285714285,
-                    },
-                    Entry {
-                        index: 5,
-                        value: 0.14285714285714285,
-                    },
-                    Entry {
-                        index: 6,
-                        value: 0.14285714285714285,
-                    },
-                ],
-                vec![Entry {
-                    index: 1,
-                    value: 1.0,
-                }],
-                vec![
-                    Entry {
-                        index: 0,
-                        value: 0.14285714285714285,
-                    },
-                    Entry {
-                        index: 1,
-                        value: 0.14285714285714285,
-                    },
-                    Entry {
-                        index: 2,
-                        value: 0.14285714285714285,
-                    },
-                    Entry {
-                        index: 3,
-                        value: 0.14285714285714285,
-                    },
-                    Entry {
-                        index: 4,
-                        value: 0.14285714285714285,
-                    },
-                    Entry {
-                        index: 5,
-                        value: 0.14285714285714285,
-                    },
-                    Entry {
-                        index: 6,
-                        value: 0.14285714285714285,
-                    },
-                ],
-                vec![Entry {
-                    index: 5,
-                    value: 1.0,
-                }],
-                vec![
-                    Entry {
-                        index: 0,
-                        value: 0.14285714285714285,
-                    },
-                    Entry {
-                        index: 1,
-                        value: 0.14285714285714285,
-                    },
-                    Entry {
-                        index: 2,
-                        value: 0.14285714285714285,
-                    },
-                    Entry {
-                        index: 3,
-                        value: 0.14285714285714285,
-                    },
-                    Entry {
-                        index: 4,
-                        value: 0.14285714285714285,
-                    },
-                    Entry {
-                        index: 5,
-                        value: 0.14285714285714285,
-                    },
-                    Entry {
-                        index: 6,
-                        value: 0.14285714285714285,
-                    },
-                ],
-            ],
-        },
-    };
+    println!("local\n{:?}\n", local_trust);
+    println!("pretrust\n{:?}\n", pre_trust);
 
-    let p = Vector::new(
-        8,
-        vec![
-            Entry {
-                index: 0,
-                value: 0.14285714285714285,
-            },
-            Entry {
-                index: 1,
-                value: 0.14285714285714285,
-            },
-            Entry {
-                index: 2,
-                value: 0.14285714285714285,
-            },
-            Entry {
-                index: 3,
-                value: 0.14285714285714285,
-            },
-            Entry {
-                index: 4,
-                value: 0.14285714285714285,
-            },
-            Entry {
-                index: 5,
-                value: 0.14285714285714285,
-            },
-            Entry {
-                index: 6,
-                value: 0.14285714285714285,
-            },
-        ],
-    );
+    canonicalize_local_trust(&mut local_trust, Some(pre_trust.clone())).unwrap();
 
-    let result = compute(&c, &p, a, e, None, None);
 
-    result
+    canonicalize_local_trust(&mut discounts, None).unwrap();
+
+
+
+    let trust_scores = compute(&local_trust, &pre_trust, a, e, None, None).unwrap();
+
+    /* 
+    // Compute trust scores (stub function, implement as needed)
+    // 
+
+    // Discount trust scores (stub function, implement as needed)
+    // discount_trust_vector(&trust_scores, &discounts)?;
+
+    let mut entries = vec![];
+    for i in 0..dim {
+        let name = peer_names.as_ref().map_or_else(
+            || format!("Peer {}", i),
+            |names| names[i].clone(),
+        );
+        entries.push(Entry::new(i, name));
+    }
+
+    for e in &trust_scores {
+        entries[e.index].score = e.score;
+        entries[e.index].score_log = e.score.log10();
+    }
+
+    entries.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+
+    Ok(entries) 
+    */
+    let mut entries2 = vec![];
+    Ok(entries2)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_run() {}
-}
+*/

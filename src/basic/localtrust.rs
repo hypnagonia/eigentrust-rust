@@ -1,4 +1,5 @@
 use crate::sparse::entry::Entry;
+use crate::sparse::entry::CooEntry;
 use crate::sparse::matrix::CSRMatrix;
 use crate::sparse::vector::Vector;
 use wasm_bindgen::prelude::*;
@@ -7,23 +8,26 @@ use std::collections::HashMap;
 
 pub fn canonicalize_local_trust(
     local_trust: &mut CSRMatrix,
-    pre_trust: Option<Vec<Entry>>,
+    pre_trust: Option<Vector>
 ) -> Result<(), String> {
     let n = local_trust.dims().0;
 
     if let Some(ref pre_trust_vec) = pre_trust {
-        if pre_trust_vec.len() != n {
+        if pre_trust_vec.entries.len() != n {
             return Err("Dimension mismatch".to_string());
         }
     }
 
     for i in 0..n {
         let mut in_row = local_trust.row_vector(i);
-        let row_sum: f64 = in_row.entries.iter().map(|entry| entry.value).sum();
+        let row_sum: f64 = in_row.entries
+            .iter()
+            .map(|entry| entry.value)
+            .sum();
 
         if row_sum == 0.0 {
             if let Some(ref pre_trust_vec) = pre_trust {
-                local_trust.set_row_vector(i, Vector::new(n, pre_trust_vec.clone()));
+                local_trust.set_row_vector(i, Vector::new(n, pre_trust_vec.entries.clone()));
             }
         } else {
             for entry in &mut in_row.entries {
@@ -36,7 +40,6 @@ pub fn canonicalize_local_trust(
     Ok(())
 }
 
-// ExtractDistrust function in Rust
 pub fn extract_distrust(local_trust: &mut CSRMatrix) -> Result<CSRMatrix, String> {
     let n = local_trust.dims().0;
     let mut distrust = CSRMatrix::new(n, n, vec![]);
@@ -64,42 +67,34 @@ pub fn extract_distrust(local_trust: &mut CSRMatrix) -> Result<CSRMatrix, String
     Ok(distrust)
 }
 
-// Helper function to parse CSV data (assuming a simple CSV reader implementation)
 fn parse_csv_line(
     line: &str,
-    peer_indices: &HashMap<String, usize>,
+    peer_indices: &mut MaxValueHashMap
 ) -> Result<(usize, usize, f64), String> {
     let fields: Vec<&str> = line.split(',').collect();
 
     if fields.len() < 2 {
         return Err("Too few fields".to_string());
     }
-    let from = *peer_indices
-        .get(fields[0])
-        .ok_or_else(|| ("Invalid from field"))?;
-    let to = *peer_indices
-        .get(fields[1])
-        .ok_or_else(|| ("Invalid to field"))?;
+    let from = peer_indices.insert_or_get(fields[0].to_string());
+    let to = peer_indices.insert_or_get(fields[1].to_string());
     let level = if fields.len() >= 3 {
-        fields[2]
-            .parse::<f64>()
-            .map_err(|_| ("Invalid trust level"))?
+        fields[2].parse::<f64>().map_err(|_| "Invalid trust level")?
     } else {
         1.0
     };
     Ok((from, to, level))
 }
 
-pub fn read_local_trust_from_csv(
-    csv_data: &str,
-    peer_indices: HashMap<String, usize>,
-) -> Result<CSRMatrix, String> {
+pub fn read_local_trust_from_csv(csv_data: &str) -> Result<(CSRMatrix, HashMap<String, usize>), String> {
     let mut entries: Vec<(usize, usize, f64)> = Vec::new();
     let mut max_from = 0;
     let mut max_to = 0;
 
+    let mut peer_indices = MaxValueHashMap::new();
+
     for (count, line) in csv_data.lines().enumerate() {
-        let parsed_result = parse_csv_line(line, &peer_indices);
+        let parsed_result = parse_csv_line(line, &mut peer_indices);
         match parsed_result {
             Ok((from, to, level)) => {
                 if from > max_from {
@@ -108,21 +103,54 @@ pub fn read_local_trust_from_csv(
                 if to > max_to {
                     max_to = to;
                 }
+
+                println!("{:?} {:?} {:?}", from, to, level);
                 entries.push((from, to, level));
             }
             Err(e) => {
-                return Err(format!(
-                    "Cannot parse local trust CSV record #{}: {:?} {:?}",
-                    count + 1,
-                    e,
-                    line
-                ));
+                return Err(
+                    format!(
+                        "Cannot parse local trust CSV record #{}: {:?} {:?}",
+                        count + 1,
+                        e,
+                        line
+                    )
+                );
             }
         }
     }
 
     let dim = max_from.max(max_to) + 1;
-    Ok(CSRMatrix::new(dim, dim, entries))
+    Ok((CSRMatrix::new(dim, dim, entries), peer_indices.map))
+}
+
+struct MaxValueHashMap {
+    pub map: HashMap<String, usize>,
+    pub max_value: usize,
+}
+
+impl MaxValueHashMap {
+    fn new() -> Self {
+        MaxValueHashMap {
+            map: HashMap::new(),
+            max_value: 0,
+        }
+    }
+
+    pub fn insert_or_get(&mut self, key: String) -> usize {
+        if let Some(&existing_value) = self.map.get(&key) {
+            return existing_value; 
+        }
+
+        self.map.insert(key.clone(), self.max_value);
+
+        self.max_value += 1;
+        self.max_value - 1
+    }
+
+    fn get_max_value(&self) -> usize {
+        self.max_value
+    }
 }
 
 #[cfg(test)]
@@ -143,13 +171,13 @@ mod tests {
             local_trust: CSRMatrix::new(
                 3,
                 3,
-                vec![(0, 0, 100.0), (0, 1, -50.0), (0, 2, -50.0), (2, 0, -100.0)],
+                vec![(0, 0, 100.0), (0, 1, -50.0), (0, 2, -50.0), (2, 0, -100.0)]
             ),
             expected_trust: CSRMatrix::new(3, 3, vec![(0, 0, 100.0)]),
             expected_distrust: CSRMatrix::new(
                 3,
                 3,
-                vec![(0, 1, 50.0), (0, 2, 50.0), (2, 0, 100.0)],
+                vec![(0, 1, 50.0), (0, 2, 50.0), (2, 0, 100.0)]
             ),
         }];
 
@@ -158,12 +186,14 @@ mod tests {
             let distrust = extract_distrust(&mut local_trust).expect("Failed to extract distrust");
 
             assert_eq!(
-                local_trust, test.expected_trust,
+                local_trust,
+                test.expected_trust,
                 "{}: local trust does not match expected value",
                 test.name
             );
             assert_eq!(
-                distrust, test.expected_distrust,
+                distrust,
+                test.expected_distrust,
                 "{}: distrust does not match expected value",
                 test.name
             );
