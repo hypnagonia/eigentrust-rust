@@ -17,6 +17,9 @@ pub fn calculate_from_csv(
     pretrust_csv: &str,
     alpha: Option<f64>
 ) -> Result<Vec<(String, f64)>, String> {
+
+    log::info!("Compute starting...");
+    
     // let e = 1.25e-7;
     let a = alpha.unwrap_or(0.5);
 

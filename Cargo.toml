@@ -7,7 +7,7 @@ description = "Rust and WASM Eigentrust implementation"
 repository = "https://github.com/hypnagonia/eigentrust-wasm"
 
 [dependencies]
-wasm-bindgen = { version = "0.2" }
+wasm-bindgen = { version = "0.2.93" }
 wasm-bindgen-test = "0.2"
 wasm-bindgen-futures = "0.4" 
 ndarray = "0.15"
@@ -18,6 +18,9 @@ console_error_panic_hook = "0.1"
 getrandom = { version = "0.2", features = ["js"] }
 log = "0.4"
 env_logger = "0.10"
+rayon = "1.6"
+num_cpus = "1.13"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
+
