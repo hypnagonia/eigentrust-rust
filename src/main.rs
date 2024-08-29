@@ -29,5 +29,5 @@ fn main() {
 
     let result = calculate_from_csv(&localtrust_csv, &pretrust_csv, None).unwrap();
 
-    // println!("{:?}", result);
+    println!("{:?}", result);
 }

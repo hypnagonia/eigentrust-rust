@@ -18,6 +18,8 @@ console_error_panic_hook = "0.1"
 getrandom = { version = "0.2", features = ["js"] }
 log = "0.4"
 env_logger = "0.10"
+rayon = "1.6"
+num_cpus = "1.13"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
