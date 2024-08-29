@@ -9,12 +9,9 @@ use crate::basic::trustvector::canonicalize_trust_vector;
 use crate::basic::eigentrust::compute;
 use crate::basic::eigentrust::discount_trust_vector;
 
-pub fn calculate() -> Result<Vec<Entry>, String> {
+pub fn calculate_from_csv(localtrust_csv: &str, pretrust_csv: &str) -> Result<Vec<Entry>, String> {
     let e = 1.25e-7;
     let a = 0.5;
-    let localtrust_csv = "0,1,11.31571\n2,3,269916.08616\n4,5,3173339.366896588\n6,5,46589750.00759474\n";
-    // let pretrust_csv = "0,0.14285714285714285\n1,0.14285714285714285\n2,0.14285714285714285\n3,0.14285714285714285\n4,0.14285714285714285\n5,0.14285714285714285\n6,0.14285714285714285\n";
-    let pretrust_csv = "0,0.14285714285714285\n";
 
     let (mut local_trust, mut peer_indices) = read_local_trust_from_csv(&localtrust_csv).unwrap();  
     let mut pre_trust = read_trust_vector_from_csv(pretrust_csv, &peer_indices).unwrap();

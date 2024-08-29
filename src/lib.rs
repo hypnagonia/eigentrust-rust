@@ -6,19 +6,23 @@ use crate::sparse::entry::Entry;
 use crate::sparse::matrix::{CSMatrix, CSRMatrix};
 use crate::sparse::vector::Vector;
 
-use crate::basic::engine::calculate;
+use crate::basic::engine::calculate_from_csv;
 
 pub mod basic;
 pub mod sparse;
 use std::panic;
 use web_sys::console;
+use std::str;
 
 #[wasm_bindgen]
-pub fn run(left: u64, right: u64) -> String {
+pub fn run(localtrust_csv: &[u8], pretrust_csv: &[u8]) -> String {
     panic::set_hook(Box::new(console_error_panic_hook::hook));
     console::log_1(&"WASM Eigentrust connected".into());
 
-    let result = calculate();
+    let lt = str::from_utf8(localtrust_csv).unwrap();
+    let pt = str::from_utf8(pretrust_csv).unwrap();
+
+    let result = calculate_from_csv(lt, pt);
     let json = serde_json::to_string(&result).unwrap();
 
     json.to_string()

@@ -1,40 +1,139 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rust WebAssembly Example</title>
-</head>
-<body>
-    <h1>Rust WebAssembly EigenTrust</h1>
-    <p>Inputs</p>
-    <pre>
-        ijv = [{
-            'i': '0',
-            'j': '1',
-            'v': 1
-        }, {
-            'i': '1',
-            'j': '2',
-            'v': 2
-        }]
-    </pre>
+    <title>CSV Upload - LocalTrust and PreTrust</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
 
-    <button id="calculate">Run Job</button>
-    <p>Result: <span id="result"></span></p>
+        }
+
+        .container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            max-height: 600px;
+        }
+
+        .container2 {
+            width: 100%;
+            height: 100%;
+            max-height: 600px;
+            padding: 20px;
+        }
+
+
+        .upload-section {
+            flex: 1;
+            padding: 20px;
+            box-sizing: border-box;
+            border-right: 1px solid #ccc;
+            overflow-y: auto;
+        }
+
+        .upload-section:last-child {
+            border-right: none;
+        }
+
+        h1 {
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+
+        pre {
+            background-color: #f4f4f4;
+            padding: 10px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="upload-section" id="localTrustSection">
+            <h1>Upload LocalTrust CSV</h1>
+            <input type="file" id="localTrustInput" accept=".csv">
+            <h2>LocalTrust CSV Content:</h2>
+            <pre id="localTrustContent"></pre>
+        </div>
+        <div class="upload-section" id="preTrustSection">
+            <h1>Upload PreTrust CSV</h1>
+            <input type="file" id="preTrustInput" accept=".csv">
+            <h2>PreTrust CSV Content:</h2>
+            <pre id="preTrustContent"></pre>
+        </div>
+
+    </div>
+
+    <div class="container2">
+        <button id="calculate">Run Job</button>
+
+
+        <p>Result:</p>
+        <pre>
+        <span id="result"></span></pre>
+    </div>
+
 
     <script type="module">
+        let localtrustBytes
+        let pretrustBytes
+
+        document.getElementById('localTrustInput').addEventListener('change', async function (event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const csvText = e.target.result;
+                document.getElementById('localTrustContent').textContent = csvText;
+
+                localtrustBytes = new TextEncoder().encode(csvText);
+            };
+
+            reader.readAsText(file);
+        });
+
+        // Handle PreTrust file upload and display
+        document.getElementById('preTrustInput').addEventListener('change', async function (event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const csvText = e.target.result;
+                document.getElementById('preTrustContent').textContent = csvText;
+
+                pretrustBytes = new TextEncoder().encode(csvText);
+            };
+
+            reader.readAsText(file);
+        });
+
+
         import init, { run } from './pkg/eigentrust_js.js'
-        
+
         async function main() {
             await init()
 
             console.log(run)
             document.getElementById('calculate').addEventListener('click', () => {
+                if (!localtrustBytes || !pretrustBytes) {
+                    alert('add localtrust and pretrust')
+                    return
+                }
+
                 console.time("eigentrust job")
-                const result = run(BigInt(2), BigInt(2))
+                const result = run(localtrustBytes, pretrustBytes)
                 console.timeEnd("eigentrust job")
-                
+
                 document.getElementById('result').textContent = result
             })
         }
@@ -42,4 +141,5 @@
         main()
     </script>
 </body>
+
 </html>
