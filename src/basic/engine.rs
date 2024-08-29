@@ -10,6 +10,7 @@ use crate::sparse::matrix::{CSMatrix, CSRMatrix};
 use crate::sparse::vector::Vector;
 use std::collections::HashMap;
 use std::f64::INFINITY;
+use super::util::strip_headers;
 
 pub fn calculate_from_csv(
     localtrust_csv: &str,
@@ -17,6 +18,9 @@ pub fn calculate_from_csv(
 ) -> Result<Vec<(String, f64)>, String> {
     let e = 1.25e-7;
     let a = 0.5;
+
+    let localtrust_csv = strip_headers(localtrust_csv);
+    let pretrust_csv = strip_headers(pretrust_csv);
 
     let (mut local_trust, mut peers) = read_local_trust_from_csv(&localtrust_csv).unwrap();
 

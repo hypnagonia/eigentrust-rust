@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::f64;
 use wasm_bindgen::prelude::*;
-use std::time::{Duration, Instant};
+use super::util::current_time_millis;
 
 // Canonicalize scales sparse entries in-place so that their values sum to one.
 // If entries sum to zero, Canonicalize returns an error indicating a zero-sum vector.
@@ -140,7 +140,7 @@ pub fn compute(
         return Err("Dimension mismatch".to_string());
     }
 
-    let t0 = Instant::now();
+    let t0 = current_time_millis();
 
     let mut t = p.clone();
     let mut t1 = p.clone();
@@ -156,7 +156,7 @@ pub fn compute(
     let min_iters = min_iterations.unwrap_or(1);
 
     while iter < max_iters {
-        let iter_t0 = Instant::now();
+        let iter_t0 = current_time_millis();
         // println!("iter {:?} {:?}\n", iter, flat_tail_checker.reached());
 
         // todo check freq
@@ -182,14 +182,10 @@ pub fn compute(
         new_t1.scale_vec(1.0 - a, &t2_clone);
         t1.add_vec(&new_t1, &ap)?;
 
-        let iter_t1 = Instant::now();
+        let iter_t1 = current_time_millis();
         let message = format!(
-            "finished in {:?}: dim = {}, nnz = {}, alpha = {}, epsilon = {}, iterations = {}",
-            iter_t1.duration_since(iter_t0),
-            n,
-            ct.cs_matrix.nnz(),
-            a,
-            e,
+            "one iteration duration={:?}: iteration = {}",
+            iter_t1 - iter_t0,
             iter
         );
 
@@ -202,10 +198,14 @@ pub fn compute(
         return Err("Reached maximum iterations without convergence".to_string());
     }
 
-    let t1_time = Instant::now();
+    let t1_time = current_time_millis();
     log::info!(
-        "Compute finished in {:?}, total iterations: {}",
-        t1_time.duration_since(t0),
+        "Compute finished in {:?}, dim = {}, nnz = {}, alpha = {}, epsilon = {}, total iterations: {}",
+        t1_time - t0,
+        n,
+        ct.cs_matrix.nnz(),
+        a,
+        e,
         iter
     );
 
