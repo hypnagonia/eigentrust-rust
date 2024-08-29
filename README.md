@@ -20,9 +20,10 @@ http://localhost:8000/index.html
 
 ## Call from browser environment
 ```js
-import init, { run } from './pkg/eigentrust_js.js'
+import init, { prepare, run } from './pkg/eigentrust_js.js'
+init().then(prepare)
+
     async function main() {
-        await init()
         console.time("eigentrust job")
         const result = run(localtrustBytes, pretrustBytes)
         console.timeEnd("eigentrust job")
