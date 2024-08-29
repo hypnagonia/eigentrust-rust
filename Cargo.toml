@@ -1,7 +1,10 @@
 [package]
-name = "eigentrust-js"
+name = "eigentrust-rs"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
+authors = ["Jenya <hypnagonia@gmail.com>"]
+description = "Rust and WASM Eigentrust implementation"
+repository = "https://github.com/hypnagonia/eigentrust-wasm"
 
 [dependencies]
 wasm-bindgen = { version = "0.2" }
