@@ -25,7 +25,6 @@ pub fn canonicalize(entries: &mut [Entry]) -> Result<(), String> {
     Ok(())
 }
 
-// ConvergenceChecker checks for convergence of trust vector series.
 pub struct ConvergenceChecker {
     iter: usize,
     t: Vector,
@@ -34,7 +33,6 @@ pub struct ConvergenceChecker {
 }
 
 impl ConvergenceChecker {
-    // Creates a new convergence checker.
     pub fn new(t0: &Vector, e: f64) -> ConvergenceChecker {
         ConvergenceChecker {
             iter: 0,
@@ -61,18 +59,15 @@ impl ConvergenceChecker {
         Ok(())
     }
 
-    // Returns true if the last updated vector has converged.
     pub fn converged(&self) -> bool {
         self.d <= self.e
     }
 
-    // Returns the delta computed as of the last Update call.
     pub fn delta(&self) -> f64 {
         self.d
     }
 }
 
-// FlatTailChecker checks for a flat tail.
 pub struct FlatTailChecker {
     length: usize,
     num_leaders: usize,
@@ -80,7 +75,6 @@ pub struct FlatTailChecker {
 }
 
 impl FlatTailChecker {
-    // Creates a new flat tail checker.
     pub fn new(length: usize, num_leaders: usize) -> FlatTailChecker {
         FlatTailChecker {
             length,
@@ -115,7 +109,6 @@ impl FlatTailChecker {
         }
     }
 
-    // Returns whether a flat tail has been reached.
     pub fn reached(&self) -> bool {
         self.stats.length >= self.length
     }
@@ -142,8 +135,6 @@ pub fn compute<'a>(
     let check_freq = 1.0;
     let min_iters = check_freq;
 
-    println!("NNZ {:?}",p.nnz());
-
     let n = c.cs_matrix.major_dim;
     if n == 0 {
         return Err("Empty local trust matrix".to_string());
@@ -155,7 +146,6 @@ pub fn compute<'a>(
 
     let t0 = current_time_millis();
 
-    // let mut t = p;
     let mut t1 = p.clone();
     let ct = c.transpose()?;
     let mut ap = p.clone();
@@ -163,13 +153,21 @@ pub fn compute<'a>(
 
     let num_leaders = n;
 
-
     let mut conv_checker = ConvergenceChecker::new(&t1, e);
     let mut flat_tail_checker = FlatTailChecker::new(min_iterations.unwrap_or(1), num_leaders);
 
     let mut iter = 0;
     let max_iters = max_iterations.unwrap_or(usize::MAX);
     let min_iters = min_iterations.unwrap_or(1);
+
+    log::info!("Compute started dim={}, num_leaders={}, nnz={}, alpha={}, epsilon={}, check_freq={}", 
+        p.dim,
+        num_leaders,
+        t1.nnz(),
+        a,
+        e,
+        check_freq
+    );
 
     while iter < max_iters {
         let iter_t0 = current_time_millis();
@@ -235,7 +233,6 @@ pub fn discount_trust_vector(t: &mut Vector, discounts: &CSRMatrix) -> Result<()
             if i1 >= t1.entries.len() {
                 // No more nonzero trust, remaining distrusters have zero rep
                 // and their distrusts do not matter, so finish
-
                 break 'DiscountsLoop;
             }
             if t1.entries[i1].index < distruster {

@@ -258,6 +258,8 @@ impl Vector {
         Ok(())
     }
 
+    
+
     // can't be normally used in web assembly env. currently broken and slower than single-threaded
     pub fn multithread_mul_vec(&mut self, m: &CSRMatrix, v1: &Vector) -> Result<(), String> {
         let dim = m.cs_matrix.dim()?; // Get the dimension of the matrix.

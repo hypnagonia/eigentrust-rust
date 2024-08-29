@@ -36,6 +36,11 @@
             background-color: rgb(242, 243, 246);
         }
 
+        .disabled {
+            cursor: wait !important;
+            background-color: rgb(242, 243, 246) !important;
+        }
+
         .pad {
             padding: 20px;
         }
@@ -48,7 +53,6 @@
         }
 
         .container {
-
             display: flex;
             width: 100%;
             height: 100%;
@@ -86,6 +90,10 @@
             font-size: 20px;
         }
 
+        a {
+            color: black;
+        }
+
         pre {
             background-color: #f4f4f4;
             padding: 10px;
@@ -99,7 +107,8 @@
 <body>
     <div class="container2">
         <div class="pad">
-            <h1>WASM Rust Eigentrust</h1>
+            <h1>WASM Rust <a target="_blank" href="https://nlp.stanford.edu/pubs/eigentrust.pdf">EigenTrust</a></h1>
+
         </div>
         <div class="line"></div>
         <div class="container">
@@ -193,9 +202,10 @@
                     return;
                 }
 
+                document.getElementById('calculate').classList.add("disabled")
+
                 document.getElementById('result').innerHTML = 'Running...'
                 setTimeout(() => {
-
                     try {
                         console.time("eigentrust job")
                         const result = run(localtrustBytes, pretrustBytes, alpha)
@@ -205,7 +215,11 @@
                         console.timeEnd("eigentrust job")
                         document.getElementById('result').innerHTML = e
                     }
-                }, 0)
+
+                    document.getElementById('calculate').classList.remove("disabled");
+                }, 10)
+
+
             })
         }
 
