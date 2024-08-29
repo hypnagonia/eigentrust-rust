@@ -1,5 +1,6 @@
 use std::env;
 use std::fs;
+use std::fs::File;
 use std::process;
 
 use crate::basic::util::init_logger;
@@ -26,7 +27,7 @@ fn main() {
         ::read_to_string(pretrust_csv_path)
         .expect("Failed to read pretrust CSV file");
 
-    let result = calculate_from_csv(&localtrust_csv, &pretrust_csv).unwrap();
+    let result = calculate_from_csv(&localtrust_csv, &pretrust_csv, None).unwrap();
 
-    println!("{:?}", result);
+    // println!("{:?}", result);
 }

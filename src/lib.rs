@@ -15,11 +15,11 @@ pub fn prepare() {
 } 
 
 #[wasm_bindgen]
-pub fn run(localtrust_csv: &[u8], pretrust_csv: &[u8]) -> String {
+pub fn run(localtrust_csv: &[u8], pretrust_csv: &[u8], alpha: f64) -> String {
     let lt = str::from_utf8(localtrust_csv).unwrap();
     let pt = str::from_utf8(pretrust_csv).unwrap();
 
-    let result = calculate_from_csv(lt, pt);
+    let result = calculate_from_csv(lt, pt, Some(alpha));
     let json = serde_json::to_string(&result).unwrap();
 
     json.to_string()
