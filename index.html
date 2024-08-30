@@ -141,43 +141,47 @@
     </div>
 
     <script type="module">
-        let localtrustBytes
-        let pretrustBytes
+        let localtrustBytes = `alice,bob,2\nbob,charlie,2\nalice,charlie,1\ncharlie,bob,1\n`
+        let pretrustBytes = 'alice,1\n'
+        document.getElementById('localTrustContent').textContent = localtrustBytes
+        document.getElementById('preTrustContent').textContent = pretrustBytes;
+        localtrustBytes = new TextEncoder().encode(localtrustBytes)
+        pretrustBytes = new TextEncoder().encode(pretrustBytes)
 
         document.getElementById('localTrustInput').addEventListener('change', async function (event) {
-            const file = event.target.files[0];
-            if (!file) return;
+            const file = event.target.files[0]
+            if (!file) return
 
-            const reader = new FileReader();
+            const reader = new FileReader()
             reader.onload = function (e) {
-                const csvText = e.target.result;
+                const csvText = e.target.result
                 if (csvText.length < 100000) {
-                    document.getElementById('localTrustContent').textContent = csvText;
+                    document.getElementById('localTrustContent').textContent = csvText
                 } else {
-                    document.getElementById('localTrustContent').textContent = 'Local trust Loaded';
+                    document.getElementById('localTrustContent').textContent = '' + csvText.split('\n').length + ' lines loaded'
                 }
 
-                localtrustBytes = new TextEncoder().encode(csvText);
-            };
+                localtrustBytes = new TextEncoder().encode(csvText)
+            }
 
-            reader.readAsText(file);
-        });
+            reader.readAsText(file)
+        })
 
         // Handle PreTrust file upload and display
         document.getElementById('preTrustInput').addEventListener('change', async function (event) {
             const file = event.target.files[0];
             if (!file) return;
 
-            const reader = new FileReader();
+            const reader = new FileReader()
             reader.onload = function (e) {
-                const csvText = e.target.result;
+                const csvText = e.target.result
                 if (csvText.length < 100000) {
-                    document.getElementById('preTrustContent').textContent = csvText;
+                    document.getElementById('preTrustContent').textContent = csvText 
                 } else {
-                    document.getElementById('preTrustContent').textContent = 'Seed trust loaded';
+                    document.getElementById('preTrustContent').textContent = '' + csvText.split('\n').length + ' lines loaded'
                 }
 
-                pretrustBytes = new TextEncoder().encode(csvText);
+                pretrustBytes = new TextEncoder().encode(csvText)
             };
 
             reader.readAsText(file);

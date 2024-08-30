@@ -48,7 +48,24 @@ wasm-pack build --target web
 ```
 
 
+## Important
+* wasm-pack must be not above 0.12.1 to support multithreading
+
 ### misc 
 wasm-pack test --node
 
 wasm-pack build --target web -- --features "threads"
+
+RUSTFLAGS='-C target-feature=+atomics,+bulk-memory,+mutable-globals' \
+  rustup run nightly-2022-12-12 \
+  wasm-pack build --target web [...] \
+  -- -Z build-std=panic_abort,std
+
+RUSTFLAGS='-C target-feature=+atomics,+bulk-memory,+mutable-globals' cargo build --target wasm32-unknown-unknown \ rustup run nightly-2022-12-12 \ wasm-pack build --target web
+
+
+rustup component add rust-src --toolchain nightly-2024-06-13-x86_64-apple-darwin
+
+wasm-bindgen-futures = "0.4" 
+console_error_panic_hook = "0.1"
+console_log = "0.2"
