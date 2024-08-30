@@ -100,3 +100,6 @@ rustc -vV
 cargo build --release -- target
 
 cargo build --target x86_64-apple-darwin --release
+
+copy
+workerHelpers.worker.js
