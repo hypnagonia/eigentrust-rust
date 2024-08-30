@@ -166,28 +166,27 @@ pub fn compute<'a>(
         check_freq
     );
 
-    println!("norm2 {:?}",t1.norm2());
+    println!("norm2 debug {:?}", t1.norm2());
 
     while iter < max_iters {
         let iter_t0 = current_time_millis();
         println!("conv_checker delta {:?}", conv_checker.d);
+        println!(
+            "flat_tail_checker.reached()  {:?}",
+            flat_tail_checker.reached()
+        );
 
-        // todo
-        // back to int
-        // flat tail
+        // todo back to int
         if (iter as f64 - min_iters as f64) % check_freq == 0.0 {
             if iter >= min_iters {
                 conv_checker.update(&t1);
                 flat_tail_checker.update(&t1, conv_checker.delta());
 
-                if iter >= min_iters && conv_checker.converged() {
-                    // && flat_tail_checker.reached() {
+                if iter >= min_iters && conv_checker.converged() && flat_tail_checker.reached() {
                     break;
                 }
             }
         }
-
-        // println!("flat_tail_checker.reached()  {:?}", flat_tail_checker.reached());
 
         let t1_clone = t1.clone();
         let mut new_t1 = t1.clone();

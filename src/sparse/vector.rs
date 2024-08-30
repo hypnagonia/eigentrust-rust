@@ -213,14 +213,10 @@ impl Vector {
             summer.add(e.value * e.value);
         }
 
-        let sum =  self.entries
-        .iter()
-        .map(|e| e.value)
-        .sum::<f64>();
+        let sum = self.entries.iter().map(|e| e.value).sum::<f64>();
 
-        println!("norm2 entries {:?}",self.entries.len());
-        println!("norm2 flat sum {:?}",sum);
-        println!("norm2 sum {:?}",summer.sum());
+        println!("flat sum {:?}", sum);
+        println!("norm2 sum {:?}", summer.sum());
         summer.sum().sqrt()
     }
 
