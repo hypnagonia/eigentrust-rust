@@ -7,8 +7,9 @@ firebase
 *.log
 firebase.json
 .firebaserc
-,firebaseignore
-
+.firebaseignore
+./.firebaseignore
+./.firebaserc
 # Created by https://www.toptal.com/developers/gitignore/api/rust
 # Edit at https://www.toptal.com/developers/gitignore?templates=rust
 
