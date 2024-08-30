@@ -92,7 +92,6 @@ mod tests {
         let entries = result.unwrap();
         assert_eq!(entries.len(), 7);
         assert!(entries[0].1 >= entries[1].1);
-        println!("{:?}", entries);
         assert_eq!(entries[0].0, "5");
         assert_eq!(entries[0].1, 0.22222219873601323);
         assert_eq!(entries[1].0, "bob");
