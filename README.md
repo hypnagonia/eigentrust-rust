@@ -35,11 +35,18 @@ import init, { prepare, run } from './pkg/eigentrust_js.js'
 main()
 ```
 
-## run OS native
+## Run OS native
 ```
 cargo run ./example/localtrust.csv ./example/pretrust2.csv
 ```
 
+### Build 
+```
+cargo build --release
+./target/release/eigentrust-rs ./tmp/trust-db.csv ./tmp/seed-db.csv
+```
+
+--------
 ## test web??
 ```
 wasm-pack test --headless --chrome
@@ -49,12 +56,10 @@ wasm-pack build --target web
 
 
 ## Important
-* wasm-pack must be not above 0.12.1 to support multithreading
+
 
 ### misc 
 wasm-pack test --node
-
-wasm-pack build --target web -- --features "threads"
 
 RUSTFLAGS='-C target-feature=+atomics,+bulk-memory,+mutable-globals' \
   rustup run nightly-2022-12-12 \
@@ -66,6 +71,9 @@ RUSTFLAGS='-C target-feature=+atomics,+bulk-memory,+mutable-globals' cargo build
 
 rustup component add rust-src --toolchain nightly-2024-06-13-x86_64-apple-darwin
 
-wasm-bindgen-futures = "0.4" 
-console_error_panic_hook = "0.1"
-console_log = "0.2"
+
+web assembly threads
+https://github.com/RReverser/wasm-bindgen-rayon
+dis
+Cross-Origin-Embedder-Policy: require-corp
+Cross-Origin-Opener-Policy: same-origin
