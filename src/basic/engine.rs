@@ -1,3 +1,4 @@
+use super::util::strip_headers;
 use crate::basic::eigentrust::compute;
 use crate::basic::eigentrust::discount_trust_vector;
 use crate::basic::localtrust::{
@@ -10,17 +11,14 @@ use crate::sparse::matrix::{CSMatrix, CSRMatrix};
 use crate::sparse::vector::Vector;
 use std::collections::HashMap;
 use std::f64::INFINITY;
-use super::util::strip_headers;
 
 pub fn calculate_from_csv(
     localtrust_csv: &str,
     pretrust_csv: &str,
-    alpha: Option<f64>
+    alpha: Option<f64>,
 ) -> Result<Vec<(String, f64)>, String> {
-
     log::info!("Compute starting...");
-    
-    // let e = 1.25e-7;
+
     let a = alpha.unwrap_or(0.5);
 
     let localtrust_csv = strip_headers(localtrust_csv);
@@ -33,6 +31,7 @@ pub fn calculate_from_csv(
     let mut pre_trust = read_trust_vector_from_csv(pretrust_csv, &peer_indices).unwrap();
 
     let c_dim = local_trust.cs_matrix.dim().unwrap();
+
     let e = 1e-6 / c_dim as f64;
 
     let p_dim = pre_trust.dim;
@@ -48,7 +47,7 @@ pub fn calculate_from_csv(
 
     canonicalize_local_trust(&mut local_trust, Some(pre_trust.clone())).unwrap();
     canonicalize_local_trust(&mut discounts, None).unwrap();
-
+    
     let mut trust_scores = compute(&local_trust, &pre_trust, a, e, None, None).unwrap();
 
     // todo get rid!

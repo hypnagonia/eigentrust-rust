@@ -18,9 +18,8 @@ pub fn current_time_millis() -> u64 {
 pub fn current_time_millis() -> u64 {
     // todo
     use std::time::Instant;
-    Instant::now().elapsed().as_millis() as u64  
+    Instant::now().elapsed().as_millis() as u64
 }
-
 
 pub fn init_logger() {
     #[cfg(target_arch = "wasm32")]
@@ -69,7 +68,6 @@ impl PeersMap {
         self.max_value
     }
 }
-
 
 pub fn strip_headers<'a>(csv_content: &'a str) -> &'a str {
     let mut lines = csv_content.lines();
