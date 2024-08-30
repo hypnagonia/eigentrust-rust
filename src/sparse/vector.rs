@@ -198,7 +198,7 @@ impl Vector {
         self.entries = non_zero_entries;
     }
 
-    pub fn norm3(&self) -> f64 {
+    pub fn norm2_bak(&self) -> f64 {
         self.entries
             .iter()
             .map(|e| e.value * e.value)
@@ -218,6 +218,9 @@ impl Vector {
         .map(|e| e.value)
         .sum::<f64>();
 
+        println!("norm2 entries {:?}",self.entries.len());
+        println!("norm2 flat sum {:?}",sum);
+        println!("norm2 sum {:?}",summer.sum());
         summer.sum().sqrt()
     }
 
