@@ -1,26 +1,26 @@
+use super::util::strip_headers;
 use crate::basic::eigentrust::compute;
 use crate::basic::eigentrust::discount_trust_vector;
 use crate::basic::localtrust::{
-    canonicalize_local_trust, extract_distrust, read_local_trust_from_csv,
+    canonicalize_local_trust,
+    extract_distrust,
+    read_local_trust_from_csv,
 };
 use crate::basic::trustvector::canonicalize_trust_vector;
 use crate::basic::trustvector::read_trust_vector_from_csv;
 use crate::sparse::entry::Entry;
-use crate::sparse::matrix::{CSMatrix, CSRMatrix};
+use crate::sparse::matrix::{ CSMatrix, CSRMatrix };
 use crate::sparse::vector::Vector;
 use std::collections::HashMap;
 use std::f64::INFINITY;
-use super::util::strip_headers;
 
 pub fn calculate_from_csv(
     localtrust_csv: &str,
     pretrust_csv: &str,
     alpha: Option<f64>
 ) -> Result<Vec<(String, f64)>, String> {
-
     log::info!("Compute starting...");
-    
-    // let e = 1.25e-7;
+
     let a = alpha.unwrap_or(0.5);
 
     let localtrust_csv = strip_headers(localtrust_csv);
@@ -33,7 +33,8 @@ pub fn calculate_from_csv(
     let mut pre_trust = read_trust_vector_from_csv(pretrust_csv, &peer_indices).unwrap();
 
     let c_dim = local_trust.cs_matrix.dim().unwrap();
-    let e = 1e-6 / c_dim as f64;
+
+    let e = 1e-6 / (c_dim as f64);
 
     let p_dim = pre_trust.dim;
     if c_dim < p_dim {
@@ -51,7 +52,6 @@ pub fn calculate_from_csv(
 
     let mut trust_scores = compute(&local_trust, &pre_trust, a, e, None, None).unwrap();
 
-    // todo get rid!
     let mut trust_scores2 = trust_scores.clone();
     discount_trust_vector(&mut trust_scores2, &discounts)?;
 
@@ -66,4 +66,34 @@ pub fn calculate_from_csv(
     entries.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
 
     Ok(entries)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    fn mock_localtrust_csv() -> &'static str {
+        "i,j,v\nalice,bob,11.31571\n2,3,269916.08616\n4,5,3173339.366896588\n6,5,46589750.00759474"
+    }
+
+    fn mock_pretrust_csv() -> &'static str {
+        "i,j,v\nalice,0.14285714285714285\nbob,0.14285714285714285\n2,0.14285714285714285\n3,0.14285714285714285\n4,0.14285714285714285\n5,0.14285714285714285\n6,0.14285714285714285"
+    }
+
+    #[test]
+    fn test_calculate_from_csv() {
+        let localtrust_csv = mock_localtrust_csv();
+        let pretrust_csv = mock_pretrust_csv();
+        let alpha = Some(0.5);
+        let result = calculate_from_csv(localtrust_csv, pretrust_csv, alpha);
+
+        assert!(result.is_ok());
+        let entries = result.unwrap();
+        assert_eq!(entries.len(), 7);
+        assert!(entries[0].1 >= entries[1].1);
+        assert_eq!(entries[0].0, "5");
+        assert_eq!(entries[0].1, 0.22222219873601323);
+        assert_eq!(entries[1].0, "bob");
+    }
 }
