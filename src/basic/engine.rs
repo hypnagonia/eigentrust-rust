@@ -2,14 +2,12 @@ use super::util::strip_headers;
 use crate::basic::eigentrust::compute;
 use crate::basic::eigentrust::discount_trust_vector;
 use crate::basic::localtrust::{
-    canonicalize_local_trust,
-    extract_distrust,
-    read_local_trust_from_csv,
+    canonicalize_local_trust, extract_distrust, read_local_trust_from_csv,
 };
 use crate::basic::trustvector::canonicalize_trust_vector;
 use crate::basic::trustvector::read_trust_vector_from_csv;
 use crate::sparse::entry::Entry;
-use crate::sparse::matrix::{ CSMatrix, CSRMatrix };
+use crate::sparse::matrix::{CSMatrix, CSRMatrix};
 use crate::sparse::vector::Vector;
 use std::collections::HashMap;
 use std::f64::INFINITY;
@@ -17,7 +15,7 @@ use std::f64::INFINITY;
 pub fn calculate_from_csv(
     localtrust_csv: &str,
     pretrust_csv: &str,
-    alpha: Option<f64>
+    alpha: Option<f64>,
 ) -> Result<Vec<(String, f64)>, String> {
     log::info!("Compute starting...");
 
@@ -71,29 +69,29 @@ pub fn calculate_from_csv(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
-
-    fn mock_localtrust_csv() -> &'static str {
-        "i,j,v\nalice,bob,11.31571\n2,3,269916.08616\n4,5,3173339.366896588\n6,5,46589750.00759474"
-    }
-
-    fn mock_pretrust_csv() -> &'static str {
-        "i,j,v\nalice,0.14285714285714285\nbob,0.14285714285714285\n2,0.14285714285714285\n3,0.14285714285714285\n4,0.14285714285714285\n5,0.14285714285714285\n6,0.14285714285714285"
-    }
 
     #[test]
     fn test_calculate_from_csv() {
-        let localtrust_csv = mock_localtrust_csv();
-        let pretrust_csv = mock_pretrust_csv();
+        let localtrust_csv =
+            "i,j,v\nalice,bob,11.31571\n2,3,269916.08616\n4,5,3173339.366896588\n6,5,46589750.00759474";
+        let pretrust_csv =
+            "i,j,v\nalice,0.14285714285714285\nbob,0.14285714285714285\n2,0.14285714285714285\n3,0.14285714285714285\n4,0.14285714285714285\n5,0.14285714285714285\n6,0.14285714285714285";
         let alpha = Some(0.5);
-        let result = calculate_from_csv(localtrust_csv, pretrust_csv, alpha);
-
-        assert!(result.is_ok());
-        let entries = result.unwrap();
+        let entries = calculate_from_csv(localtrust_csv, pretrust_csv, alpha).unwrap();
         assert_eq!(entries.len(), 7);
         assert!(entries[0].1 >= entries[1].1);
         assert_eq!(entries[0].0, "5");
         assert_eq!(entries[0].1, 0.22222219873601323);
         assert_eq!(entries[1].0, "bob");
+
+        let localtrust_csv =
+            "alice,bob,11.31571\n2,3,269916.08616\n4,5,3173339.366896588\n6,5,46589750.00759474";
+        let pretrust_csv = "alice,1";
+        let alpha = Some(0.5);
+        let entries = calculate_from_csv(localtrust_csv, pretrust_csv, alpha).unwrap();
+        assert_eq!(entries.len(), 2);
+        assert!(entries[0].1 >= entries[1].1);
+        assert_eq!(entries[0].0, "alice");
+        assert_eq!(entries[0].1, 0.6666666865348816);
     }
 }

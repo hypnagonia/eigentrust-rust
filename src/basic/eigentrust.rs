@@ -354,7 +354,6 @@ mod tests {
             expected: Vector::new(
                 5,
                 vec![
-                    // {index, original - distrust*gt}
                     Entry {
                         index: 0,
                         value: 0.25 - 0.25 * 0.5,
