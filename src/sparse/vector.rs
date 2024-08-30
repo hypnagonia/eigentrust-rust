@@ -228,7 +228,6 @@ impl Vector {
         self.entries.sort_by_key(|e| e.index);
     }
 
-    // multithreading
     #[cfg(not(target_arch = "wasm32"))]
     pub fn mul_vec(&mut self, m: &CSRMatrix, v1: &Vector) -> Result<(), String> {
         let dim = m.cs_matrix.dim()?;
