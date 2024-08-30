@@ -99,7 +99,9 @@ rustc -vV
 
 cargo build --release -- target
 
-cargo build --target x86_64-apple-darwin --release
 
-copy
+cargo build --target x86_64-apple-darwin --release
+./target/x86_64-apple-darwin/release/eigentrust-rs ./tmp/trust-db.csv ./tmp/seed-db.csv
+
+edit path in
 workerHelpers.worker.js

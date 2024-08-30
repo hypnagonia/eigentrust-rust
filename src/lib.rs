@@ -6,16 +6,15 @@ use wasm_bindgen::prelude::*;
 pub mod basic;
 pub mod sparse;
 use crate::basic::util::init_logger;
+use rayon::prelude::*;
 use std::panic;
 use std::str;
-use rayon::prelude::*;
 
-pub use wasm_bindgen_rayon::init_thread_pool;
 
-#[wasm_bindgen]
-pub fn sum(numbers: &[i32]) -> i32 {
-    numbers.par_iter().sum()
-}
+//#[wasm_bindgen]
+//pub fn sum(numbers: &[i32]) -> i32 {
+//    numbers.par_iter().sum()
+//}
 
 #[wasm_bindgen]
 pub fn prepare() {

@@ -1,16 +1,13 @@
 use std::cmp::Ordering;
 use std::f64;
-use std::sync::{Arc, Mutex};
-
 use super::entry::{CooEntry, Entry};
 use super::matrix::CSRMatrix;
 use super::util::KBNSummer;
-use num_cpus;
 use rayon::prelude::*;
-use rayon::ThreadPoolBuilder;
 use serde::Serialize;
-use std::thread;
 
+// #[cfg(target_arch = "wasm32")]
+// pub use wasm_bindgen_rayon::init_thread_pool;
 
 #[derive(Clone, PartialEq, Debug, Serialize)]
 pub struct Vector {
@@ -231,37 +228,36 @@ impl Vector {
             return Err("Dimension mismatch".to_string());
         }
 
-        let num_threads = num_cpus::get();
-        
-        let pool = ThreadPoolBuilder::new()
-            .num_threads(num_threads)
-            .build()
-            .unwrap();
+        // let num_threads = num_cpus::get();
 
-        let entries: Vec<Entry> = pool.install(|| {
-            (0..dim)
-                .into_par_iter()
-                .filter_map(|row| {
-                    let row_vector = m.row_vector(row);
-                    let product = vec_dot(&row_vector, &v1);
+        //let pool = ThreadPoolBuilder::new()
+        //    .num_threads(num_threads)
+        //    .build()
+        //    .unwrap();
 
-                    if product != 0.0 {
-                        Some(Entry {
-                            index: row,
-                            value: product,
-                        })
-                    } else {
-                        None
-                    }
-                })
-                .collect()
-        });
+        let entries: Vec<Entry> = (0..dim)
+            .into_par_iter() 
+            .filter_map(|row| {
+                let row_vector = m.row_vector(row);
+                let product = vec_dot(&row_vector, &v1);
+
+                if product != 0.0 {
+                    Some(Entry {
+                        index: row,
+                        value: product,
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect();
 
         self.dim = dim;
         self.entries = entries;
 
         Ok(())
     }
+
 
     // single-threaded
     #[cfg(target_arch = "wasm32")]
