@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use wasm_bindgen::prelude::*;
 
 #[cfg(target_arch = "wasm32")]
 use console_log;

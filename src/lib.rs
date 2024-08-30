@@ -1,3 +1,5 @@
+#![cfg(target_arch = "wasm32")]
+
 use crate::basic::engine::calculate_from_csv;
 use wasm_bindgen::prelude::*;
 
@@ -6,6 +8,14 @@ pub mod sparse;
 use crate::basic::util::init_logger;
 use std::panic;
 use std::str;
+use rayon::prelude::*;
+
+pub use wasm_bindgen_rayon::init_thread_pool;
+
+#[wasm_bindgen]
+pub fn sum(numbers: &[i32]) -> i32 {
+    numbers.par_iter().sum()
+}
 
 #[wasm_bindgen]
 pub fn prepare() {

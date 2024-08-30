@@ -10,7 +10,7 @@ use rayon::prelude::*;
 use rayon::ThreadPoolBuilder;
 use serde::Serialize;
 use std::thread;
-use wasm_bindgen_futures::spawn_local;
+
 
 #[derive(Clone, PartialEq, Debug, Serialize)]
 pub struct Vector {
@@ -232,6 +232,7 @@ impl Vector {
         }
 
         let num_threads = num_cpus::get();
+        
         let pool = ThreadPoolBuilder::new()
             .num_threads(num_threads)
             .build()

@@ -7,7 +7,6 @@ use std::cmp;
 use std::collections::HashMap;
 use std::error::Error;
 use std::f64;
-use wasm_bindgen::prelude::*;
 
 // Canonicalize scales sparse entries in-place so that their values sum to one.
 // If entries sum to zero, Canonicalize returns an error indicating a zero-sum vector.

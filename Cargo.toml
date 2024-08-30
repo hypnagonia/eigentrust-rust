@@ -6,15 +6,17 @@ authors = ["Jenya <hypnagonia@gmail.com>"]
 description = "Rust and WASM Eigentrust implementation"
 repository = "https://github.com/hypnagonia/eigentrust-wasm"
 
-[dependencies]
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = { version = "=0.2.93" }
-wasm-bindgen-test = "0.2"
-wasm-bindgen-futures = "0.4" 
+wasm-bindgen-rayon = "1.2.1"
+console_error_panic_hook = "0.1"
+console_log = "0.2"
+
+[dependencies]
 ndarray = "0.15"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-console_error_panic_hook = "0.1"
-console_log = "0.2"
 getrandom = { version = "0.2.2", features = ["js"] }
 log = "0.4"
 env_logger = "0.10"
@@ -22,7 +24,11 @@ rayon = "1.8"
 num_cpus = "1.13"
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib"]
+
+
+
+
 
 
 
