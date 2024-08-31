@@ -2,7 +2,7 @@
 This is a Rust port of the [EigenTrust](https://nlp.stanford.edu/pubs/eigentrust.pdf) algorithm, originally implemented in [Go](https://github.com/Karma3Labs/go-eigentrust). The project includes both server and client implementations designed to run natively as well as in a **WebAssembly environment for browser compatibility**.
 
 ## Live Demo
-[https://eigentrust2.web.app](https://eigentrust.web.app)
+[https://eigentrust.web.app](https://eigentrust.web.app)
 
 ## Test
 ```
