@@ -70,7 +70,7 @@ impl Vector {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn mul_vec2(&mut self, m: &CSRMatrix, v1: &Self) -> Result<(), String> {
+    pub fn mul_vec(&mut self, m: &CSRMatrix, v1: &Self) -> Result<(), String> {
         let dim = m.cs_matrix.dim()?;
         if dim != v1.dim {
             return Err("Dimension mismatch".to_string());
@@ -97,7 +97,7 @@ impl Vector {
         Ok(())
     }
 
-    // #[cfg(target_arch = "wasm32")]
+    #[cfg(target_arch = "wasm32")]
     pub fn mul_vec(&mut self, m: &CSRMatrix, v1: &Self) -> Result<(), String> {
         let dim = m.cs_matrix.dim()?;
         if dim != v1.dim {
