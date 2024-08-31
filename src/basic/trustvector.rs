@@ -1,6 +1,6 @@
 use crate::sparse::entry::Entry;
 use crate::sparse::vector::Vector;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::fmt;
 
@@ -34,6 +34,13 @@ fn canonicalize(entries: &mut Vec<Entry>) -> Result<(), &'static str> {
     Ok(())
 }
 
+enum DuplicateHandling {
+    Allow,
+    Remove,
+    Fail,
+}
+
+// todo move csv logic out of this scope
 pub fn read_trust_vector_from_csv(
     input: &str,
     peer_indices: &HashMap<String, usize>,
@@ -41,6 +48,9 @@ pub fn read_trust_vector_from_csv(
     let mut count = 0;
     let mut max_peer = -1;
     let mut entries = Vec::new();
+    let mut seen_peers = HashSet::new();
+    let remove_dublicates = true;
+    let duplicate_handling = DuplicateHandling.Allow;
 
     for line in input.lines() {
         count += 1;
@@ -66,6 +76,21 @@ pub fn read_trust_vector_from_csv(
             }
         };
 
+        if seen_peers.contains(&peer) {
+            duplicate_count += 1;
+            match duplicate_handling {
+                DuplicateHandling::Fail => {
+                    return Err(format!("duplicate peer {:?} in line {}", fields[0], count));
+                }
+                DuplicateHandling::Remove => {
+                    continue;
+                }
+                DuplicateHandling::Allow => {}
+            }
+        } else {
+            seen_peers.insert(peer);
+        }
+
         if max_peer < peer as isize {
             max_peer = peer as isize;
         }
@@ -76,6 +101,13 @@ pub fn read_trust_vector_from_csv(
         });
     }
 
+    if (seen_peers.len() > 0) {
+        log::warn!(
+            "Skipped {} dublicates in pretrusted peers",
+            seen_peers.len()
+        );
+    }
+    log::info!("max_peer {:?}", max_peer);
     Ok(Vector::new((max_peer + 1) as usize, entries))
 }
 
