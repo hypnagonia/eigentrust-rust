@@ -25,8 +25,8 @@ http://localhost:8000/index.html
 ```js
 import init, { prepare, run } from './pkg/eigentrust_js.js'
     async function main() {
-        await init().then(prepare)
-
+        await init()
+        
         console.time("eigentrust job")
         const result = run(localtrustBytes, pretrustBytes)
         console.timeEnd("eigentrust job")

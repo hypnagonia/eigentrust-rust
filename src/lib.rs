@@ -8,8 +8,8 @@ use crate::basic::util::init_logger;
 use std::panic;
 use std::str;
 
-#[wasm_bindgen]
-pub fn prepare() {
+#[wasm_bindgen(start)]
+fn main() {
     panic::set_hook(Box::new(console_error_panic_hook::hook));
     init_logger();
     log::info!("WASM Eigentrust connected");

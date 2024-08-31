@@ -127,7 +127,7 @@ pub fn compute<'a>(
     max_iterations: Option<usize>,
     min_iterations: Option<usize>,
 ) -> Result<Vector, String> {
-    if alpha.is_nan() {
+    if a.is_nan() {
         return Err("Error: alpha cannot be NaN".to_string())
     }
     
