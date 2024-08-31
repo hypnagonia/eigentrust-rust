@@ -1,0 +1,23 @@
+{
+  "name": "eigentrust-rs",
+  "type": "module",
+  "collaborators": [
+    "Jenya <hypnagonia@gmail.com>"
+  ],
+  "description": "Rust and WASM Eigentrust implementation",
+  "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hypnagonia/eigentrust-wasm"
+  },
+  "files": [
+    "eigentrust_rs_bg.wasm",
+    "eigentrust_rs.js",
+    "eigentrust_rs.d.ts"
+  ],
+  "main": "eigentrust_rs.js",
+  "types": "eigentrust_rs.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

@@ -1,20 +1,14 @@
-#![cfg(target_arch = "wasm32")]
-
+// #![cfg(target_arch = "wasm32")]
 use crate::basic::engine::calculate_from_csv;
 use wasm_bindgen::prelude::*;
-
 pub mod basic;
 pub mod sparse;
 use crate::basic::util::init_logger;
-use rayon::prelude::*;
 use std::panic;
 use std::str;
+use std::time::Duration;
+use wasm_thread as thread;
 
-
-//#[wasm_bindgen]
-//pub fn sum(numbers: &[i32]) -> i32 {
-//    numbers.par_iter().sum()
-//}
 
 #[wasm_bindgen]
 pub fn prepare() {
@@ -31,5 +25,37 @@ pub fn run(localtrust_csv: &[u8], pretrust_csv: &[u8], alpha: f64) -> String {
     let result = calculate_from_csv(lt, pt, Some(alpha));
     let json = serde_json::to_string(&result).unwrap();
 
+    json.to_string();
+
+    for _ in 0..2 {
+        thread::spawn(|| {
+            for i in 1..3 {
+                log::info!("hi number {} from the spawned thread {:?}!", i, thread::current().id());
+                thread::sleep(Duration::from_millis(1));
+            }
+        });
+    }
+
+    for i in 1..3 {
+        log::info!("hi number {} from the main thread {:?}!", i, thread::current().id());
+    }
+    
     json.to_string()
+}
+
+#[wasm_bindgen(start)]
+fn main() {
+
+    for _ in 0..2 {
+        thread::spawn(|| {
+            for i in 1..3 {
+                log::info!("hi number {} from the spawned thread {:?}!", i, thread::current().id());
+                thread::sleep(Duration::from_millis(1));
+            }
+        });
+    }
+
+    for i in 1..3 {
+        log::info!("hi number {} from the main thread {:?}!", i, thread::current().id());
+    }
 }

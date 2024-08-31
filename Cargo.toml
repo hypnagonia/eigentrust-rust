@@ -1,5 +1,5 @@
 [package]
-name = "eigentrust-rs"
+name = "eigentrust"
 version = "0.1.0"
 edition = "2021"
 authors = ["Jenya <hypnagonia@gmail.com>"]
@@ -9,9 +9,9 @@ repository = "https://github.com/hypnagonia/eigentrust-wasm"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = { version = "=0.2.93" }
-
 console_error_panic_hook = "0.1"
-console_log = "0.2"
+console_log = "1"
+wasm_thread = {version = "0.3", default-features = false}
 
 [dependencies]
 ndarray = "0.15"
