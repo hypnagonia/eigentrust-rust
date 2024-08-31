@@ -1,7 +1,7 @@
 let e
 
 (async () => {
-    e = await import('./eigentrust_rs.js')
+    e = await import('./pkg/eigentrust_rs.js')
     await e.default()
     await e.prepare()
 })()

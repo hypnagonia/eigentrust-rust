@@ -1,5 +1,5 @@
 [package]
-name = "eigentrust-rs"
+name = "eigentrust"
 version = "0.1.0"
 edition = "2021"
 authors = ["Jenya <hypnagonia@gmail.com>"]
