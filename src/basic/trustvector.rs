@@ -51,6 +51,7 @@ pub fn read_trust_vector_from_csv(
     let mut seen_peers = HashSet::new();
     let remove_dublicates = true;
     let duplicate_handling = DuplicateHandling.Allow;
+    let mut dublicate_count = 0;
 
     for line in input.lines() {
         count += 1;
@@ -77,15 +78,17 @@ pub fn read_trust_vector_from_csv(
         };
 
         if seen_peers.contains(&peer) {
-            duplicate_count += 1;
             match duplicate_handling {
                 DuplicateHandling::Fail => {
                     return Err(format!("duplicate peer {:?} in line {}", fields[0], count));
                 }
                 DuplicateHandling::Remove => {
+                    dublicate_count += 1;
                     continue;
                 }
-                DuplicateHandling::Allow => {}
+                DuplicateHandling::Allow => {
+                    dublicate_count += 1;
+                }
             }
         } else {
             seen_peers.insert(peer);
@@ -101,13 +104,13 @@ pub fn read_trust_vector_from_csv(
         });
     }
 
-    if (seen_peers.len() > 0) {
+    if (seen_peers.len() + dublicate_count > 0) {
         log::warn!(
             "Skipped {} dublicates in pretrusted peers",
-            seen_peers.len()
+            seen_peers.len() + dublicate_count
         );
     }
-    log::info!("max_peer {:?}", max_peer);
+
     Ok(Vector::new((max_peer + 1) as usize, entries))
 }
 
