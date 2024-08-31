@@ -66,7 +66,7 @@ impl Vector {
         for e in &self.entries {
             summer.add(e.value * e.value);
         }
-        summer.sum().sqrt();
+        summer.sum().sqrt()
     }
 
     #[cfg(not(target_arch = "wasm32"))]
