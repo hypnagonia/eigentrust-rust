@@ -57,23 +57,3 @@ wasm-pack build --target web
 
 ## Important
 
-
-### misc 
-wasm-pack test --node
-
-RUSTFLAGS='-C target-feature=+atomics,+bulk-memory,+mutable-globals' \
-  rustup run nightly-2022-12-12 \
-  wasm-pack build --target web [...] \
-  -- -Z build-std=panic_abort,std
-
-RUSTFLAGS='-C target-feature=+atomics,+bulk-memory,+mutable-globals' cargo build --target wasm32-unknown-unknown \ rustup run nightly-2022-12-12 \ wasm-pack build --target web
-
-
-rustup component add rust-src --toolchain nightly-2024-06-13-x86_64-apple-darwin
-
-
-web assembly threads
-https://github.com/RReverser/wasm-bindgen-rayon
-dis
-Cross-Origin-Embedder-Policy: require-corp
-Cross-Origin-Opener-Policy: same-origin
