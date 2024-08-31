@@ -55,14 +55,14 @@ impl CSMatrix {
     }
 
     pub fn transpose(&self) -> Result<CSMatrix, String> {
-        log::debug!("step 1");
+        log::info!("step 1");
         let mut nnzs = vec![0; self.minor_dim];
         for row_entries in &self.entries {
             for entry in row_entries {
                 nnzs[entry.index] += 1;
             }
         }
-        log::debug!("step 2");
+        log::info!("step 2");
         
         let mut transposed_entries = vec![Vec::new(); self.minor_dim];
         for (col, &nnz) in nnzs.iter().enumerate() {
@@ -71,7 +71,7 @@ impl CSMatrix {
             }
         }
 
-        log::debug!("step 3");
+        log::info!("step 3");
         for (row, row_entries) in self.entries.iter().enumerate() {
             for entry in row_entries {
                 transposed_entries[entry.index].push(Entry {

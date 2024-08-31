@@ -12,9 +12,9 @@ use wasm_thread as thread;
 
 #[wasm_bindgen]
 pub fn prepare() {
-    panic::set_hook(Box::new(console_error_panic_hook::hook));
-    init_logger();
-    log::info!("WASM Eigentrust connected");
+    //panic::set_hook(Box::new(console_error_panic_hook::hook));
+    //init_logger();
+    //log::info!("WASM Eigentrust connected");
 }
 
 #[wasm_bindgen]
@@ -45,6 +45,8 @@ pub fn run(localtrust_csv: &[u8], pretrust_csv: &[u8], alpha: f64) -> String {
 
 #[wasm_bindgen(start)]
 fn main() {
+    console_log::init().unwrap();
+    console_error_panic_hook::set_once();
 
     for _ in 0..2 {
         thread::spawn(|| {
