@@ -1,7 +1,7 @@
-use std::cmp::Ordering;
-use std::sync::{Arc, Mutex};
 use rayon::prelude::*;
 use serde::Serialize;
+use std::cmp::Ordering;
+use std::sync::{Arc, Mutex};
 
 use super::entry::{CooEntry, Entry};
 use super::matrix::CSRMatrix;
@@ -66,11 +66,11 @@ impl Vector {
         for e in &self.entries {
             summer.add(e.value * e.value);
         }
-        summer.sum().sqrt()
+        summer.sum().sqrt();
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn mul_vec(&mut self, m: &CSRMatrix, v1: &Self) -> Result<(), String> {
+    pub fn mul_vec2(&mut self, m: &CSRMatrix, v1: &Self) -> Result<(), String> {
         let dim = m.cs_matrix.dim()?;
         if dim != v1.dim {
             return Err("Dimension mismatch".to_string());
@@ -81,7 +81,10 @@ impl Vector {
             .filter_map(|row| {
                 let product = vec_dot(&m.row_vector(row), v1);
                 if product != 0.0 {
-                    Some(Entry { index: row, value: product })
+                    Some(Entry {
+                        index: row,
+                        value: product,
+                    })
                 } else {
                     None
                 }
@@ -94,7 +97,7 @@ impl Vector {
         Ok(())
     }
 
-    #[cfg(target_arch = "wasm32")]
+    // #[cfg(target_arch = "wasm32")]
     pub fn mul_vec(&mut self, m: &CSRMatrix, v1: &Self) -> Result<(), String> {
         let dim = m.cs_matrix.dim()?;
         if dim != v1.dim {
@@ -105,7 +108,10 @@ impl Vector {
         for row in 0..dim {
             let product = vec_dot(&m.row_vector(row), v1);
             if product != 0.0 {
-                entries.push(Entry { index: row, value: product });
+                entries.push(Entry {
+                    index: row,
+                    value: product,
+                });
             }
         }
 
@@ -141,12 +147,18 @@ impl Vector {
                     }
                     Ordering::Greater => {
                         i2 += 1;
-                        Entry { index: e2.index, value: op(0.0, e2.value) }
+                        Entry {
+                            index: e2.index,
+                            value: op(0.0, e2.value),
+                        }
                     }
                     Ordering::Equal => {
                         i1 += 1;
                         i2 += 1;
-                        Entry { index: e1.index, value: op(e1.value, e2.value) }
+                        Entry {
+                            index: e1.index,
+                            value: op(e1.value, e2.value),
+                        }
                     }
                 },
                 (Some(e1), None) => {
@@ -155,7 +167,10 @@ impl Vector {
                 }
                 (None, Some(e2)) => {
                     i2 += 1;
-                    Entry { index: e2.index, value: op(0.0, e2.value) }
+                    Entry {
+                        index: e2.index,
+                        value: op(0.0, e2.value),
+                    }
                 }
                 (None, None) => break,
             };

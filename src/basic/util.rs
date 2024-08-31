@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use log::Level;
+use std::collections::HashMap;
 
 #[cfg(target_arch = "wasm32")]
 pub fn current_time_millis() -> u64 {

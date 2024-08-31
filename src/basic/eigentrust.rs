@@ -128,9 +128,9 @@ pub fn compute<'a>(
     min_iterations: Option<usize>,
 ) -> Result<Vector, String> {
     if a.is_nan() {
-        return Err("Error: alpha cannot be NaN".to_string())
+        return Err("Error: alpha cannot be NaN".to_string());
     }
-    
+
     let n = c.cs_matrix.major_dim;
     if n == 0 {
         return Err("Empty local trust matrix".to_string());
@@ -140,14 +140,14 @@ pub fn compute<'a>(
         return Err("Dimension mismatch".to_string());
     }
 
-    let check_freq = 1.0;
+    let check_freq = 1;
     let min_iters = check_freq;
-
 
     let t0 = current_time_millis();
 
     let mut t1 = p.clone();
     let ct = c.transpose()?;
+
     let mut ap = p.clone();
     ap.scale_vec(a, p);
 
@@ -170,7 +170,7 @@ pub fn compute<'a>(
         check_freq
     );
 
-    println!("norm2 debug {:?}", t1.norm2());
+    // std::process::exit(0);
 
     while iter < max_iters {
         let iter_t0 = current_time_millis();
@@ -180,13 +180,12 @@ pub fn compute<'a>(
             flat_tail_checker.reached()
         );
 
-        // todo back to int
-        if (iter as f64 - min_iters as f64) % check_freq == 0.0 {
+        if (iter.saturating_sub(min_iters)) % conv_checker.converged() {
             if iter >= min_iters {
                 conv_checker.update(&t1);
                 flat_tail_checker.update(&t1, conv_checker.delta());
 
-                if iter >= min_iters && conv_checker.converged() && flat_tail_checker.reached() {
+                if conv_checker.converged() && flat_tail_checker.reached() {
                     break;
                 }
             }

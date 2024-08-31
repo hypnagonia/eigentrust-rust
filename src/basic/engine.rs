@@ -12,6 +12,8 @@ use crate::sparse::vector::Vector;
 use std::collections::HashMap;
 use std::f64::INFINITY;
 
+// todo array inputs
+
 pub fn calculate_from_csv(
     localtrust_csv: &str,
     pretrust_csv: &str,

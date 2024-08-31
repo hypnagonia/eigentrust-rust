@@ -1,7 +1,7 @@
-use std::cmp::Ordering;
-use std::ptr;
 use super::entry::Entry;
 use super::vector::Vector;
+use std::cmp::Ordering;
+use std::ptr;
 
 // Compressed Sparse Matrix (CSMatrix) equivalent in Rust
 #[derive(Clone, PartialEq, Debug)]
