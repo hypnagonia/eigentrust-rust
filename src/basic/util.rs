@@ -22,7 +22,7 @@ pub fn init_logger() {
     #[cfg(not(target_arch = "wasm32"))]
     {
         env_logger::builder()
-            .filter_level(log::LevelFilter::Debug)
+            .filter_level(log::LevelFilter::Trace)
             .init();
         log::debug!("Logger initialized for native environment");
     }
