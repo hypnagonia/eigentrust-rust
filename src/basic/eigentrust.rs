@@ -180,7 +180,7 @@ pub fn compute<'a>(
             flat_tail_checker.reached()
         );
 
-        if (iter.saturating_sub(min_iters)) % conv_checker.converged() {
+        if (iter.saturating_sub(min_iters)) % check_freq == 0 {
             if iter >= min_iters {
                 conv_checker.update(&t1);
                 flat_tail_checker.update(&t1, conv_checker.delta());
