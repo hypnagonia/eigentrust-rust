@@ -2,7 +2,7 @@
 This is a Rust port of the [EigenTrust](https://nlp.stanford.edu/pubs/eigentrust.pdf) algorithm, originally implemented in [Go](https://github.com/Karma3Labs/go-eigentrust). The project includes both server and client implementations designed to run natively as well as in a **WebAssembly environment for browser compatibility**.
 
 ## Live Demo
-[https://eigentrust2.web.app](https://eigentrust.web.app)
+[https://eigentrust.web.app](https://eigentrust.web.app)
 
 ## Test
 ```
@@ -57,23 +57,3 @@ wasm-pack build --target web
 
 ## Important
 
-
-### misc 
-wasm-pack test --node
-
-RUSTFLAGS='-C target-feature=+atomics,+bulk-memory,+mutable-globals' \
-  rustup run nightly-2022-12-12 \
-  wasm-pack build --target web [...] \
-  -- -Z build-std=panic_abort,std
-
-RUSTFLAGS='-C target-feature=+atomics,+bulk-memory,+mutable-globals' cargo build --target wasm32-unknown-unknown \ rustup run nightly-2022-12-12 \ wasm-pack build --target web
-
-
-rustup component add rust-src --toolchain nightly-2024-06-13-x86_64-apple-darwin
-
-
-web assembly threads
-https://github.com/RReverser/wasm-bindgen-rayon
-dis
-Cross-Origin-Embedder-Policy: require-corp
-Cross-Origin-Opener-Policy: same-origin
