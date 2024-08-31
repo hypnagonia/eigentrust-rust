@@ -127,9 +127,10 @@ pub fn compute<'a>(
     max_iterations: Option<usize>,
     min_iterations: Option<usize>,
 ) -> Result<Vector, String> {
-    let check_freq = 1.0;
-    let min_iters = check_freq;
-
+    if alpha.is_nan() {
+        return Err("Error: alpha cannot be NaN".to_string())
+    }
+    
     let n = c.cs_matrix.major_dim;
     if n == 0 {
         return Err("Empty local trust matrix".to_string());
@@ -138,6 +139,10 @@ pub fn compute<'a>(
     if p.dim != n {
         return Err("Dimension mismatch".to_string());
     }
+
+    let check_freq = 1.0;
+    let min_iters = check_freq;
+
 
     let t0 = current_time_millis();
 
