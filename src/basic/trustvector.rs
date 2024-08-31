@@ -50,7 +50,7 @@ pub fn read_trust_vector_from_csv(
     let mut entries = Vec::new();
     let mut seen_peers = HashSet::new();
     let remove_dublicates = true;
-    let duplicate_handling = DuplicateHandling.Allow;
+    let duplicate_handling = DuplicateHandling::Allow;
     let mut dublicate_count = 0;
 
     for line in input.lines() {
@@ -104,10 +104,10 @@ pub fn read_trust_vector_from_csv(
         });
     }
 
-    if (seen_peers.len() + dublicate_count > 0) {
+    if dublicate_count > 0 {
         log::warn!(
             "Skipped {} dublicates in pretrusted peers",
-            seen_peers.len() + dublicate_count
+            dublicate_count
         );
     }
 

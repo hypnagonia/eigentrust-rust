@@ -52,7 +52,7 @@ cargo build --release
 ```
 wasm-pack test --headless --chrome
 
-wasm-pack build --target web
+wasm-pack build --target web --release
 ```
 
 
