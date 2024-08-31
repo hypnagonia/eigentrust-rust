@@ -188,7 +188,6 @@
 
         const worker = new Worker('worker.js');
         worker.onmessage = function (e) {
-
             document.getElementById('result').innerHTML = e.data
         };
 
@@ -215,8 +214,7 @@
 
                 document.getElementById('calculate').classList.add("disabled")
                 document.getElementById('result').innerHTML = 'Running...'
-                document.getElementById('calculate').classList.remove("disabled");
-                worker.postMessage({ localtrustBytes, pretrustBytes });
+                worker.postMessage({ localtrustBytes, pretrustBytes, alpha });
             })
         }
 
