@@ -1,6 +1,5 @@
 use serde::Serialize;
 use std::cmp::Ordering;
-use wasm_bindgen::prelude::*;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Entry {

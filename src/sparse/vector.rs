@@ -10,7 +10,7 @@ use rayon::prelude::*;
 use rayon::ThreadPoolBuilder;
 use serde::Serialize;
 use std::thread;
-use wasm_bindgen_futures::spawn_local;
+// use wasm_bindgen_futures::spawn_local;
 
 #[derive(Clone, PartialEq, Debug, Serialize)]
 pub struct Vector {

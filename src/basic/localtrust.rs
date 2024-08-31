@@ -4,7 +4,6 @@ use crate::sparse::entry::Entry;
 use crate::sparse::matrix::CSRMatrix;
 use crate::sparse::vector::Vector;
 use std::collections::HashMap;
-use wasm_bindgen::prelude::*;
 
 pub fn canonicalize_local_trust(
     local_trust: &mut CSRMatrix,

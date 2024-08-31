@@ -1,3 +1,4 @@
+#![cfg(target_arch = "wasm32")]
 use crate::basic::engine::calculate_from_csv;
 use wasm_bindgen::prelude::*;
 

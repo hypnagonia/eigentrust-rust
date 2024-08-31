@@ -1,12 +1,4 @@
 use std::collections::HashMap;
-use wasm_bindgen::prelude::*;
-
-#[cfg(target_arch = "wasm32")]
-use console_log;
-
-#[cfg(not(target_arch = "wasm32"))]
-use env_logger;
-
 use log::Level;
 
 #[cfg(target_arch = "wasm32")]

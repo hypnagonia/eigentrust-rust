@@ -1,7 +1,5 @@
 use std::cmp::Ordering;
 use std::ptr;
-use wasm_bindgen::prelude::*;
-
 use super::entry::Entry;
 use super::vector::Vector;
 

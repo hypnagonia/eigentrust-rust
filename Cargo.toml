@@ -23,7 +23,12 @@ rayon = "1.8"
 num_cpus = "1.13"
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib"]
+
+
+
+
+
 
 
 
