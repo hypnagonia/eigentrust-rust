@@ -38,14 +38,18 @@ impl ConvergenceChecker {
         }
     }
 
-    // Updates the checker with another iteration of the trust vector.
     pub fn update(&mut self, t: &Vector) -> Result<(), String> {
-        println!("ConvergenceChecker updating ");
-
         let mut td = Vector::new(self.t.dim, vec![]);
         td.sub_vec(t, &self.t)?;
 
         let d = td.norm2();
+
+        log::debug!(
+            "one iteration={} log10dPace={} log10dRemaining={}",
+            self.iter,
+            (d / self.d).log10(),
+            (d / self.e).log10()
+        );
 
         self.t.assign(t);
         self.d = d;
@@ -82,7 +86,6 @@ impl FlatTailChecker {
         }
     }
 
-    // Updates the checker with another iteration of the trust vector.
     pub fn update(&mut self, t: &Vector, d: f64) {
         let mut entries = t.entries.clone();
         entries.sort_by(|a, b| {
@@ -109,7 +112,6 @@ impl FlatTailChecker {
     }
 }
 
-// FlatTailStats represents statistics about a flat tail.
 pub struct FlatTailStats {
     pub length: usize,
     pub threshold: usize,
@@ -200,22 +202,8 @@ pub fn compute<'a>(
         let mut t2 = new_t1.clone();
         t2.scale_vec(1.0 - a, &new_t1);
         t1.add_vec(&t2, &ap)?;
-        /*
-                let t1_clone = t1.clone();
-                let mut new_t1 = t1.clone();
-                new_t1.mul_vec(&ct, &t1_clone)?;
-                let t2_clone = new_t1.clone();
-                new_t1.scale_vec(1.0 - a, &t2_clone);
-                t1.add_vec(&new_t1, &ap)?;
-        */
-        let iter_t1 = current_time_millis();
-        let message = format!(
-            "one iteration time={:?}: iteration={}",
-            iter_t1 - iter_t0,
-            iter
-        );
 
-        log::info!("{:?}", &message);
+        let iter_t1 = current_time_millis();
 
         iter += 1;
     }
@@ -225,14 +213,16 @@ pub fn compute<'a>(
     }
 
     let t1_time = current_time_millis();
+
     log::info!(
-        "Compute finished time={:?}, dim={}, nnz={}, alpha={}, epsilon={}, iterations={}",
-        t1_time - t0,
-        n,
-        ct.cs_matrix.nnz(),
+        "finished: alpha={} dim={} nnz={} epsilon={} flatTail={} iterations={} numLeaders={}",
         a,
-        e,
-        iter
+        n, 
+        ct.cs_matrix.nnz(), 
+        e, 
+        flat_tail, 
+        iter, 
+        num_leaders, 
     );
 
     Ok(t1)
@@ -245,21 +235,16 @@ pub fn discount_trust_vector(t: &mut Vector, discounts: &CSRMatrix) -> Result<()
     'DiscountsLoop: for (distruster, distrusts) in discounts.cs_matrix.entries.iter().enumerate() {
         'T1Loop: loop {
             if i1 >= t1.entries.len() {
-                // No more nonzero trust, remaining distrusters have zero rep
-                // and their distrusts do not matter, so finish
                 break 'DiscountsLoop;
             }
             if t1.entries[i1].index < distruster {
-                // The peer at i1 has no distrust, advance to the next peer
                 i1 += 1;
                 continue 'T1Loop;
             }
             if t1.entries[i1].index == distruster {
-                // Found a match!
                 break 'T1Loop;
             }
             if t1.entries[i1].index > distruster {
-                // Distruster has zero rep, advance to the next distruster
                 continue 'DiscountsLoop;
             }
         }

@@ -16,8 +16,7 @@ pub fn current_time_millis() -> u64 {
 pub fn init_logger() {
     #[cfg(target_arch = "wasm32")]
     {
-        console_log::init_with_level(Level::Info).expect("Failed to initialize logger");
-        log::debug!("Logger initialized for WebAssembly");
+        console_log::init_with_level(Level::Trace).expect("Failed to initialize logger");
     }
 
     #[cfg(not(target_arch = "wasm32"))]

@@ -105,10 +105,7 @@ pub fn read_trust_vector_from_csv(
     }
 
     if dublicate_count > 0 {
-        log::warn!(
-            "Skipped {} dublicates in pretrusted peers",
-            dublicate_count
-        );
+        log::warn!("Skipped {} dublicates in pretrusted peers", dublicate_count);
     }
 
     Ok(Vector::new((max_peer + 1) as usize, entries))
