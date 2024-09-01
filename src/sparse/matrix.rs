@@ -94,7 +94,7 @@ impl CSMatrix {
         other.reset();
     }
 }
-
+//--
 fn merge_span(s1: &[Entry], s2: &[Entry]) -> Vec<Entry> {
     let mut s = Vec::with_capacity(s1.len() + s2.len());
     let mut i1 = 0;
@@ -178,7 +178,7 @@ impl CSRMatrix {
             cs_matrix: transposed,
         })
     }
-
+    //--
     pub fn transpose_to_csc(&self) -> CSCMatrix {
         CSCMatrix {
             cs_matrix: CSMatrix {
@@ -205,6 +205,7 @@ impl CSCMatrix {
         self.cs_matrix.set_minor_dim(rows);
     }
 
+    // -
     pub fn column_vector(&self, index: usize) -> Vector {
         Vector {
             dim: self.cs_matrix.minor_dim,
@@ -219,6 +220,8 @@ impl CSCMatrix {
         })
     }
 
+
+    // -
     pub fn transpose_to_csr(&self) -> CSRMatrix {
         CSRMatrix {
             cs_matrix: CSMatrix {
@@ -231,14 +234,15 @@ impl CSCMatrix {
 }
 
 // todo cooentry
+//--
 pub fn create_csr_matrix(rows: usize, cols: usize, entries: Vec<(usize, usize, f64)>) -> CSRMatrix {
     CSRMatrix::new(rows, cols, entries)
 }
-
+//--
 pub fn transpose_csr_matrix(matrix: &CSRMatrix) -> Result<CSRMatrix, String> {
     matrix.transpose()
 }
-
+//-
 pub fn transpose_to_csc(matrix: &CSRMatrix) -> CSCMatrix {
     matrix.transpose_to_csc()
 }

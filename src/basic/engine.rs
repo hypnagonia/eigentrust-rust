@@ -2,22 +2,25 @@ use super::util::strip_headers;
 use crate::basic::eigentrust::compute;
 use crate::basic::eigentrust::discount_trust_vector;
 use crate::basic::localtrust::{
-    canonicalize_local_trust, extract_distrust, read_local_trust_from_csv,
+    canonicalize_local_trust,
+    extract_distrust,
+    read_local_trust_from_csv,
 };
 use crate::basic::trustvector::canonicalize_trust_vector;
 use crate::basic::trustvector::read_trust_vector_from_csv;
 use crate::sparse::entry::Entry;
-use crate::sparse::matrix::{CSMatrix, CSRMatrix};
+use crate::sparse::matrix::{ CSMatrix, CSRMatrix };
 use crate::sparse::vector::Vector;
 use std::collections::HashMap;
 use std::f64::INFINITY;
+use std::fs;
 
 // todo array inputs
 
 pub fn calculate_from_csv(
     localtrust_csv: &str,
     pretrust_csv: &str,
-    alpha: Option<f64>,
+    alpha: Option<f64>
 ) -> Result<Vec<(String, f64)>, String> {
     log::info!("Compute starting...");
 
@@ -95,5 +98,21 @@ mod tests {
         assert!(entries[0].1 >= entries[1].1);
         assert_eq!(entries[0].0, "alice");
         assert_eq!(entries[0].1, 0.6666666865348816);
+    }
+
+    #[test]
+    fn test_calculate_from_csv_file() {
+        let localtrust_csv =fs::read_to_string("./example/localtrust2.csv").expect("Failed to read localtrust CSV file");
+        let pretrust_csv = fs
+            ::read_to_string("./example/pretrust2.csv")
+            .expect("Failed to read pretrust CSV file");
+
+        let entries = calculate_from_csv(&localtrust_csv, &pretrust_csv, None).unwrap();
+
+        assert_eq!(entries.len(), 9);
+        assert!(entries[0].1 >= entries[1].1);
+        assert_eq!(entries[0].0, "0x84e1056ed1b76fb03b43e924ef98833dba394b2b");
+        assert_eq!(entries[0].1, 0.4034661335389856);
+        assert_eq!(entries[1].0, "0x9fc3b33884e1d056a8ca979833d686abd267f9f8");
     }
 }
