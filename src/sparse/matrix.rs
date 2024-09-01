@@ -94,7 +94,7 @@ impl CSMatrix {
         other.reset();
     }
 }
-//--
+
 fn merge_span(s1: &[Entry], s2: &[Entry]) -> Vec<Entry> {
     let mut s = Vec::with_capacity(s1.len() + s2.len());
     let mut i1 = 0;
