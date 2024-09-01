@@ -7,7 +7,9 @@ use std::cmp;
 use std::collections::HashMap;
 use std::error::Error;
 use std::f64;
-use sprs::{CsMat, CsVec, TriMat};
+use sprs::{ CsMat, CsVec, TriMat };
+
+use super::localtrust::canonicalize_local_trust_sprs;
 
 // Canonicalize scales sparse entries in-place so that their values sum to one.
 // If entries sum to zero, Canonicalize returns an error indicating a zero-sum vector.
@@ -48,12 +50,14 @@ impl ConvergenceChecker {
 
         let d = td.norm2();
 
+        /*
         log::debug!(
             "one iteration={} log10dPace={} log10dRemaining={}",
             self.iter,
             (d / self.d).log10(),
             (d / self.e).log10()
         );
+         */
 
         self.t.assign(t);
         self.d = d;
@@ -122,6 +126,29 @@ pub struct FlatTailStats {
     pub ranking: Vec<usize>,
 }
 
+fn normalize_trimat(trimat: &mut TriMat<f64>) {
+    let (rows, _cols) = trimat.shape();
+    let mut row_sums = vec![0.0; rows];
+
+    for (value, (row, _col)) in trimat.triplet_iter() {
+        row_sums[row] += value;
+    }
+
+    println!("row_sums {:?}", row_sums);
+    let mut normalized_trimat = TriMat::with_capacity(trimat.shape(), trimat.nnz());
+
+    for (value, (row, col)) in trimat.triplet_iter() {
+        if row_sums[row] != 0.0 {
+            println!("value {} {}", value, row_sums[row]);
+            normalized_trimat.add_triplet(row, col, value / row_sums[row]);
+        } else {
+            normalized_trimat.add_triplet(row, col, 0.0); // handle rows that sum to 0
+        }
+    }
+
+    *trimat = normalized_trimat;
+}
+
 // Compute function implements the EigenTrust algorithm.
 // todo Error instead of String
 pub fn compute<'a>(
@@ -150,8 +177,6 @@ pub fn compute<'a>(
     let check_freq = 1;
     let min_iters = check_freq;
 
-    let t0 = current_time_millis();
-
     let mut t1 = p.clone();
     let ct = c.transpose()?;
 
@@ -169,7 +194,7 @@ pub fn compute<'a>(
     let max_iters = max_iterations.unwrap_or(usize::MAX);
     let min_iters = min_iterations.unwrap_or(1);
 
-    let sp = CsVec::new(
+    let mut pretrust_vector = CsVec::new(
         7,
         vec![0, 1, 2, 3, 4, 5, 6],
         vec![
@@ -183,29 +208,43 @@ pub fn compute<'a>(
         ]
     );
 
+    let mut a_pretrust = pretrust_vector.clone();
+    for (_, value) in a_pretrust.iter_mut() {
+        *value *= a;
+    }
+
     let mut sl_triplet = TriMat::new((7, 7));
+
     sl_triplet.add_triplet(0, 1, 11.31571);
-    sl_triplet.add_triplet(2,3, 269916.08616);
+    sl_triplet.add_triplet(2, 3, 269916.08616);
     sl_triplet.add_triplet(4, 5, 3173339.366896588);
     sl_triplet.add_triplet(6, 5, 46589750.00759474);
 
-    let sl: CsMat<f64> = sl_triplet.to_csr();
+    normalize_trimat(&mut sl_triplet);
 
-    println!("sprx pretrust {:?}", sp);
-    println!("sprx localtrust {:?}", sl_triplet);
-    println!("sprx localtrust {:?}", sl);
 
-    println!("go pretrust");
-    for e in p.entries.iter() {
+    canonicalize_local_trust_sprs(&mut sl_triplet, Some(&pretrust_vector));
+
+    println!("localtrust {:?}", sl_triplet);
+
+
+    let localtrust_matrix: CsMat<f64> = sl_triplet.to_csr();
+
+    let localtrust_matrix = localtrust_matrix.transpose_into();
+
+    println!("sprx pretrust {:?}---", pretrust_vector);
+
+    println!("sprx localtrust \n{:?}---", localtrust_matrix.to_dense());
+
+    println!("go pretrust-----");
+    for e in t1.entries.iter() {
         println!("  Index: {:?},", e);
     }
 
-
-    println!("sprx pretrust");
+    println!("go localtrust----");
     for e in c.cs_matrix.entries.iter() {
         println!("  Index: {:?},", e);
     }
-
 
     log::info!(
         "Compute started dim={}, num_leaders={}, nnz={}, alpha={}, epsilon={}, check_freq={}",
@@ -218,7 +257,9 @@ pub fn compute<'a>(
     );
 
     while iter < max_iters {
-        //println!("iter {:?}", iter);
+        log::debug!("------");
+
+        println!("iter {:?} --------------------------", iter);
         //println!("d {:?}", conv_checker.delta());
         //println!("conv_checker.converged() {:?}", conv_checker.converged());
 
@@ -228,21 +269,38 @@ pub fn compute<'a>(
 
                 // flat_tail_checker.update(&t1, conv_checker.delta());
 
-                if conv_checker.converged() 
-                // && flat_tail_checker.reached() 
+                if
+                    conv_checker.converged()
+                    // && flat_tail_checker.reached()
                 {
                     break;
                 }
             }
         }
 
-        let mut new_t1 = t1.clone();
-        new_t1.mul_vec(&ct, &t1)?;
-        let mut t2 = new_t1.clone();
-        t2.scale_vec(1.0 - a, &new_t1);
-        t1.add_vec(&t2, &ap)?;
+        let mut new_t1 = t1.clone(); // depr
+        new_t1.mul_vec(&ct, &t1)?; // depr
+        let mut t2 = new_t1.clone(); // depr
+        t2.scale_vec(1.0 - a, &new_t1); // depr
+        t1.add_vec(&t2, &ap)?; // depr
+        
+        let mut new_vector = &localtrust_matrix * &pretrust_vector;
+        
+       
 
-        let iter_t1 = current_time_millis();
+        let mut new_vector2 = new_vector.clone();
+        
+        for (_, value) in new_vector2.iter_mut() {
+            *value *= 1.0 - a;
+        }
+
+        let new_vector3 = new_vector2 + a_pretrust.clone();
+
+      
+
+        println!("new t1 {:?}", new_vector3);
+        println!("go t1 {:?}", t1);
+
 
         iter += 1;
     }
@@ -250,8 +308,6 @@ pub fn compute<'a>(
     if iter >= max_iters {
         return Err("Reached maximum iterations without convergence".to_string());
     }
-
-    let t1_time = current_time_millis();
 
     log::info!(
         "finished: alpha={} dim={} nnz={} epsilon={} flatTail={} iterations={} numLeaders={}",

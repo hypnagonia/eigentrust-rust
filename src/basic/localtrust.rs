@@ -4,6 +4,48 @@ use crate::sparse::entry::Entry;
 use crate::sparse::matrix::CSRMatrix;
 use crate::sparse::vector::Vector;
 use std::collections::HashMap;
+use sprs::{TriMat, CsVec};
+
+pub fn canonicalize_local_trust_sprs(
+    local_trust: &mut TriMat<f64>,
+    pre_trust: Option<&CsVec<f64>>,
+) -> Result<(), String> {
+    let (n, _m) = local_trust.shape();
+
+    if let Some(pre_trust_vec) = pre_trust {
+        if pre_trust_vec.dim() > n {
+            return Err("Dimension mismatch".to_string());
+        }
+    }
+
+    let mut new_trimat = TriMat::with_capacity(local_trust.shape(), local_trust.nnz());
+
+    for i in 0..n {
+        let mut row_entries: Vec<(usize, f64)> = local_trust
+            .triplet_iter()
+            .filter(|(_, (row, _))| *row == i)
+            .map(| (&value, (_, col)) | (col, value))
+            .collect();
+
+        let row_sum: f64 = row_entries.iter().map(|&(_, value)| value).sum();
+
+        if row_sum == 0.0 {
+            if let Some(pre_trust_vec) = pre_trust {
+                for (col, &value) in pre_trust_vec.iter() {
+                    new_trimat.add_triplet(i, col, value);
+                }
+            }
+        } else {
+            for (col, value) in row_entries {
+                new_trimat.add_triplet(i, col, value / row_sum);
+            }
+        }
+    }
+
+    *local_trust = new_trimat;
+
+    Ok(())
+}
 
 pub fn canonicalize_local_trust(
     local_trust: &mut CSRMatrix,

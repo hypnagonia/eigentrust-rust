@@ -51,6 +51,8 @@ pub fn calculate_from_csv(
     let mut discounts = extract_distrust(&mut local_trust).unwrap();
 
     canonicalize_local_trust(&mut local_trust, Some(pre_trust.clone())).unwrap();
+
+    
     canonicalize_local_trust(&mut discounts, None).unwrap();
 
     let mut trust_scores = compute(&local_trust, &pre_trust, a, e, None, None).unwrap();
