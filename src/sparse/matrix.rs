@@ -178,74 +178,8 @@ impl CSRMatrix {
             cs_matrix: transposed,
         })
     }
-    //--
-    pub fn transpose_to_csc(&self) -> CSCMatrix {
-        CSCMatrix {
-            cs_matrix: CSMatrix {
-                major_dim: self.cs_matrix.minor_dim,
-                minor_dim: self.cs_matrix.major_dim,
-                entries: self.cs_matrix.entries.clone(),
-            },
-        }
-    }
 }
 
-#[derive(Clone, PartialEq, Debug)]
-pub struct CSCMatrix {
-    pub cs_matrix: CSMatrix,
-}
-
-impl CSCMatrix {
-    pub fn dims(&self) -> (usize, usize) {
-        (self.cs_matrix.minor_dim, self.cs_matrix.major_dim)
-    }
-
-    pub fn set_dim(&mut self, rows: usize, cols: usize) {
-        self.cs_matrix.set_major_dim(cols);
-        self.cs_matrix.set_minor_dim(rows);
-    }
-
-    // -
-    pub fn column_vector(&self, index: usize) -> Vector {
-        Vector {
-            dim: self.cs_matrix.minor_dim,
-            entries: self.cs_matrix.entries[index].clone(),
-        }
-    }
-
-    pub fn transpose(&self) -> Result<CSCMatrix, String> {
-        let transposed = self.cs_matrix.transpose()?;
-        Ok(CSCMatrix {
-            cs_matrix: transposed,
-        })
-    }
-
-
-    // -
-    pub fn transpose_to_csr(&self) -> CSRMatrix {
-        CSRMatrix {
-            cs_matrix: CSMatrix {
-                major_dim: self.cs_matrix.minor_dim,
-                minor_dim: self.cs_matrix.major_dim,
-                entries: self.cs_matrix.entries.clone(),
-            },
-        }
-    }
-}
-
-// todo cooentry
-//--
-pub fn create_csr_matrix(rows: usize, cols: usize, entries: Vec<(usize, usize, f64)>) -> CSRMatrix {
-    CSRMatrix::new(rows, cols, entries)
-}
-//--
-pub fn transpose_csr_matrix(matrix: &CSRMatrix) -> Result<CSRMatrix, String> {
-    matrix.transpose()
-}
-//-
-pub fn transpose_to_csc(matrix: &CSRMatrix) -> CSCMatrix {
-    matrix.transpose_to_csc()
-}
 
 #[cfg(test)]
 mod tests {
