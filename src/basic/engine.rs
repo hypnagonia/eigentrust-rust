@@ -1,18 +1,16 @@
 use super::util::strip_headers;
 use crate::basic::eigentrust::compute;
-use crate::basic::eigentrust::discount_trust_vector;
+
 use crate::basic::eigentrust::discount_trust_vector_sprs;
 use crate::basic::localtrust::{
-    canonicalize_local_trust, canonicalize_local_trust_sprs, extract_distrust,
-    extract_distrust_sprs, read_local_trust_from_csv, read_local_trust_from_csv_sprs,
+     canonicalize_local_trust_sprs, 
+    extract_distrust_sprs,  read_local_trust_from_csv_sprs,
 };
-use crate::basic::trustvector::canonicalize_trust_vector;
+
 use crate::basic::trustvector::canonicalize_trust_vector_sprs;
-use crate::basic::trustvector::read_trust_vector_from_csv;
+
 use crate::basic::trustvector::read_trust_vector_from_csv_sprs;
 use crate::sparse::entry::Entry;
-use crate::sparse::matrix::{CSMatrix, CSRMatrix};
-use crate::sparse::vector::Vector;
 use sprs::{CsMat, CsVec, TriMat};
 use std::collections::HashMap;
 use std::f64::INFINITY;
@@ -24,7 +22,7 @@ pub fn calculate_from_csv(
     localtrust_csv: &str,
     pretrust_csv: &str,
     alpha: Option<f64>,
-) -> Result<(Vec<(String, f64)>, Vec<(String, f64)>), String> {
+) -> Result<Vec<(String, f64)>, String>  {
     log::info!("Compute starting...");
 
     let a = alpha.unwrap_or(0.5);
@@ -32,26 +30,14 @@ pub fn calculate_from_csv(
     let localtrust_csv = strip_headers(localtrust_csv);
     let pretrust_csv = strip_headers(pretrust_csv);
 
-    let (mut local_trust, peers) = read_local_trust_from_csv(&localtrust_csv).unwrap();
-
     let (mut local_trust_s, peers) = read_local_trust_from_csv_sprs(&localtrust_csv).unwrap();
 
     let mut peer_indices = peers.map;
-
-    let mut pre_trust = read_trust_vector_from_csv(pretrust_csv, &peer_indices).unwrap();
-
     let mut pre_trust_s = read_trust_vector_from_csv_sprs(pretrust_csv, &peer_indices).unwrap();
 
-    let c_dim = local_trust.cs_matrix.dim().unwrap();
+    let (c_dim, _) = local_trust_s.shape();
 
     let e = 1e-6 / (c_dim as f64);
-
-    let p_dim = pre_trust.dim;
-    if c_dim < p_dim {
-        local_trust.set_dim(p_dim, p_dim);
-    } else {
-        pre_trust.set_dim(c_dim);
-    }
 
     // todo resize sprs??
     let l_dim = local_trust_s.rows().max(local_trust_s.cols());
@@ -63,7 +49,6 @@ pub fn calculate_from_csv(
         }
         local_trust_s = resized_matrix;
     } else if p_dim < l_dim {
-        println!("\n\n\ngetting pretrust");
         let mut resized_vec = CsVec::new(
             l_dim,
             pre_trust_s.indices().to_vec(),
@@ -77,7 +62,7 @@ pub fn calculate_from_csv(
 
         pre_trust_s = resized_vec.clone();
     }
-
+    
     assert_eq!(
         local_trust_s.shape().0,
         pre_trust_s.dim(),
@@ -86,28 +71,16 @@ pub fn calculate_from_csv(
         pre_trust_s.dim()
     );
 
-    canonicalize_trust_vector(&mut pre_trust);
-
     canonicalize_trust_vector_sprs(&mut pre_trust_s);
-
-    let mut discounts = extract_distrust(&mut local_trust).unwrap();
-
     let mut discounts_s = extract_distrust_sprs(&mut local_trust_s).unwrap();
 
-    canonicalize_local_trust(&mut local_trust, Some(pre_trust.clone())).unwrap();
-    canonicalize_local_trust(&mut discounts, None).unwrap();
-
+    log::info!("Step 4");
     canonicalize_local_trust_sprs(&mut local_trust_s, Some(&pre_trust_s.clone())).unwrap();
+    log::info!("Step 5");
     canonicalize_local_trust_sprs(&mut discounts_s, None).unwrap();
 
-    //println!("engine go {:?} localtrust\n", local_trust);
-
-    //let localtrust_matrix: CsMat<f64> = local_trust_s.to_csr();
-    //println!("\nengine sprs {:?} localtrust\n", localtrust_matrix.to_dense());
-
-    let (mut trust_scores, mut global_trust_s) = compute(
-        &local_trust,
-        &pre_trust,
+    
+    let mut global_trust_s = compute(
         &local_trust_s,
         &pre_trust_s,
         a,
@@ -117,24 +90,10 @@ pub fn calculate_from_csv(
     )
     .unwrap();
 
-    //log::debug!("trust_scores {:?}", trust_scores);
-    //log::debug!("global_trust_s {:?}", global_trust_s);
-
-    let mut trust_scores2 = trust_scores.clone();
-    discount_trust_vector(&mut trust_scores2, &discounts)?;
     discount_trust_vector_sprs(&mut global_trust_s, &discounts_s)?;
 
     let mut entries = vec![];
-
-    let mut entries_old = vec![];
-
     
-    for e in &trust_scores.entries {
-        let name_ref = peers.map_reversed.get(&e.index).unwrap();
-        let name = name_ref.clone();
-        entries_old.push((name, e.value));
-    }
-
     for (index, &value) in global_trust_s.iter() {
         if let Some(name_ref) = peers.map_reversed.get(&index) {
             let name = name_ref.clone();
@@ -144,9 +103,7 @@ pub fn calculate_from_csv(
 
     entries.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
 
-    entries_old.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
-
-    Ok((entries, entries_old))
+    Ok(entries)
 }
 
 #[cfg(test)]

@@ -1,8 +1,6 @@
 use super::util::current_time_millis;
 use super::util::PeersMap;
 use crate::sparse::entry::Entry;
-use crate::sparse::matrix::{CSMatrix, CSRMatrix};
-use crate::sparse::vector::Vector;
 use sprs::{CsMat, CsVec, TriMat};
 use std::cmp;
 use std::collections::HashMap;
@@ -42,16 +40,11 @@ impl ConvergenceChecker {
     }
 
     pub fn update(&mut self, t: &CsVec<f64>) -> Result<(), String> {
-        // Create a new vector to store the differences
         let mut td = CsVec::new(self.t.dim(), Vec::new(), Vec::new());
-
-        // Calculate the difference between t and self.t
         for (index, &value) in t.iter() {
             let t_value = self.t.get(index).unwrap_or(&0.0);
             td.append(index, t_value - value);
         }
-
-        // Compute the 2-norm of the difference vector td
         let d = td.dot(&td).sqrt();
         log::debug!(
             "one iteration={} log10dPace={} log10dRemaining={}",
@@ -60,7 +53,6 @@ impl ConvergenceChecker {
             (d / self.e).log10()
         );
 
-        // Assign t to self.t and update the distance
         self.t = t.clone();
         self.d = d;
         self.iter += 1;
@@ -96,15 +88,15 @@ impl FlatTailChecker {
         }
     }
 
-    pub fn update(&mut self, t: &Vector, d: f64) {
-        let mut entries = t.entries.clone();
-        entries.sort_by(|a, b| {
-            b.value
-                .partial_cmp(&a.value)
-                .unwrap_or(cmp::Ordering::Equal)
-        });
-        let ranking: Vec<usize> = entries.iter().map(|entry| entry.index).collect();
+    pub fn update(&mut self, t: &CsVec<f64>, d: f64) {
+        // Clone and sort the non-zero entries in descending order by value
+        let mut entries: Vec<_> = t.iter().collect();
+        entries.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(cmp::Ordering::Equal));
+        
+        // Extract the ranking by index
+        let ranking: Vec<usize> = entries.iter().map(|(index, _)| *index).collect();
 
+        // Check if the ranking is the same as the previous iteration
         if ranking == self.stats.ranking {
             self.stats.length += 1;
         } else {
@@ -155,15 +147,13 @@ fn normalize_trimat(trimat: &mut TriMat<f64>) {
 // Compute function implements the EigenTrust algorithm.
 // todo Error instead of String
 pub fn compute<'a>(
-    mut c: &CSRMatrix,
-    mut p: &Vector,
     mut local_trust_triplet: &TriMat<f64>,
     mut pre_trust_vector_s: &CsVec<f64>,
     a: f64,
     e: f64,
     max_iterations: Option<usize>,
     min_iterations: Option<usize>,
-) -> Result<(Vector, CsVec<f64>), String> {
+) -> Result<CsVec<f64>, String>  {
     if a.is_nan() {
         return Err("Error: alpha cannot be NaN".to_string());
     }
@@ -173,18 +163,12 @@ pub fn compute<'a>(
         return Err("Empty local trust matrix".to_string());
     }
 
-    if p.dim != n {
+    if pre_trust_vector_s.dim() != n {
         return Err("Dimension mismatch".to_string());
     }
 
     let check_freq = 1;
     let min_iters = check_freq;
-
-    let mut t1 = p.clone();
-    let ct = c.transpose()?;
-
-    let mut ap = p.clone();
-    ap.scale_vec(a, p);
 
     let num_leaders = n;
 
@@ -207,21 +191,6 @@ pub fn compute<'a>(
 
     let local_trust_matrix: CsMat<f64> = local_trust_triplet.to_csr();
     let mut local_trust_matrix = local_trust_matrix.transpose_into();
-
-    /*
-    println!("sprx pretrust {:?}---", pretrust_vector);
-
-    println!("sprx localtrust \n{:?}---", localtrust_matrix.to_dense());
-
-    println!("go pretrust-----");
-    for e in t1.entries.iter() {
-        println!("  Index: {:?},", e);
-    }
-
-    println!("go localtrust----");
-    for e in c.cs_matrix.entries.iter() {
-        println!("  Index: {:?},", e);
-    } */
 
     log::info!(
         "Compute started dim={}, num_leaders={}, nnz={}, alpha={}, epsilon={}, check_freq={}",
@@ -248,11 +217,6 @@ pub fn compute<'a>(
             }
         }
 
-        let mut new_t1 = t1.clone(); // depr
-        new_t1.mul_vec(&ct, &t1)?; // depr
-        let mut t2 = new_t1.clone(); // depr
-        t2.scale_vec(1.0 - a, &new_t1); // depr
-        t1.add_vec(&t2, &ap)?; // depr
 
         let mut new_vector = &local_trust_matrix * &pre_trust_vector;
 
@@ -277,55 +241,14 @@ pub fn compute<'a>(
         "finished: alpha={} dim={} nnz={} epsilon={} flatTail={} iterations={} numLeaders={}",
         a,
         n,
-        ct.cs_matrix.nnz(),
+        local_trust_matrix.nnz(),
         e,
         flat_tail,
         iter,
         num_leaders
     );
     // todo
-    Ok((t1, pre_trust_vector))
-}
-
-pub fn discount_trust_vector(t: &mut Vector, discounts: &CSRMatrix) -> Result<(), String> {
-    let mut i1 = 0;
-    let t1 = t.clone();
-
-    'DiscountsLoop: for (distruster, distrusts) in discounts.cs_matrix.entries.iter().enumerate() {
-        'T1Loop: loop {
-            if i1 >= t1.entries.len() {
-                break 'DiscountsLoop;
-            }
-            if t1.entries[i1].index < distruster {
-                i1 += 1;
-                continue 'T1Loop;
-            }
-            if t1.entries[i1].index == distruster {
-                break 'T1Loop;
-            }
-            if t1.entries[i1].index > distruster {
-                continue 'DiscountsLoop;
-            }
-        }
-
-        let scaled_distrust_vec = {
-            let mut temp_vec = Vector::new(t.dim, Vec::new());
-            temp_vec.scale_vec(
-                t1.entries[i1].value,
-                &(Vector {
-                    dim: t.dim,
-                    entries: distrusts.clone(),
-                }),
-            );
-            temp_vec
-        };
-
-        let t2 = t.clone();
-        t.sub_vec(&t2, &scaled_distrust_vec)?;
-
-        i1 += 1;
-    }
-    Ok(())
+    Ok(pre_trust_vector)
 }
 
 pub fn discount_trust_vector_sprs(
