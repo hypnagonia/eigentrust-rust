@@ -58,15 +58,15 @@ pub fn read_trust_vector_from_csv(
         let fields: Vec<&str> = line.split(',').collect();
 
         let (peer, level) = match fields.len() {
-            0 => return Err(format!("too few fields in line {}", count)),
+            0 => return Err(format!("Too few fields in line {}", count)),
             _ => {
                 let peer = parse_peer_id(fields[0], peer_indices).map_err(|e| {
-                    format!("invalid peer {:?} in line {}: {}", fields[0], count, e)
+                    format!("Invalid peer {:?} in line {}: {}", fields[0], count, e)
                 })?;
                 let level = if fields.len() >= 2 {
                     parse_trust_level(fields[1]).map_err(|e| {
                         format!(
-                            "invalid trust level {:?} in line {}: {}",
+                            "Invalid trust level {:?} in line {}: {}",
                             fields[1], count, e
                         )
                     })?
@@ -80,7 +80,7 @@ pub fn read_trust_vector_from_csv(
         if seen_peers.contains(&peer) {
             match duplicate_handling {
                 DuplicateHandling::Fail => {
-                    return Err(format!("duplicate peer {:?} in line {}", fields[0], count));
+                    return Err(format!("Duplicate peer {:?} in line {}", fields[0], count));
                 }
                 DuplicateHandling::Remove => {
                     dublicate_count += 1;
@@ -105,7 +105,7 @@ pub fn read_trust_vector_from_csv(
     }
 
     if dublicate_count > 0 {
-        log::warn!("Skipped {} dublicates in pretrusted peers", dublicate_count);
+        log::warn!("Pretrust contains {} duplicate peers", dublicate_count);
     }
 
     Ok(Vector::new((max_peer + 1) as usize, entries))

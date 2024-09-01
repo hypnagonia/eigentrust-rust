@@ -82,7 +82,7 @@ fn parse_csv_line(line: &str, peer_indices: &mut PeersMap) -> Result<(usize, usi
     Ok((from, to, level))
 }
 
-// todo move csv logic out of this scope
+// todo move csv logic out of this scope, cooentry
 pub fn read_local_trust_from_csv(csv_data: &str) -> Result<(CSRMatrix, PeersMap), String> {
     let mut entries: Vec<(usize, usize, f64)> = Vec::new();
     let mut max_from = 0;

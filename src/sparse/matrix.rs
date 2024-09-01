@@ -1,9 +1,9 @@
-use super::entry::Entry;
+use super::entry::{Entry, CooEntry};
 use super::vector::Vector;
 use std::cmp::Ordering;
 use std::ptr;
 
-// Compressed Sparse Matrix (CSMatrix) equivalent in Rust
+
 #[derive(Clone, PartialEq, Debug)]
 pub struct CSMatrix {
     pub major_dim: usize,
@@ -230,7 +230,7 @@ impl CSCMatrix {
     }
 }
 
-// todo sparse Entry instead of Vec
+// todo cooentry
 pub fn create_csr_matrix(rows: usize, cols: usize, entries: Vec<(usize, usize, f64)>) -> CSRMatrix {
     CSRMatrix::new(rows, cols, entries)
 }

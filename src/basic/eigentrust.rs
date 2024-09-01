@@ -142,6 +142,8 @@ pub fn compute<'a>(
         return Err("Dimension mismatch".to_string());
     }
 
+    log::debug!("{:?}",p.sum());
+
     let check_freq = 1;
     let min_iters = check_freq;
 
@@ -180,10 +182,6 @@ pub fn compute<'a>(
         println!("iter {:?}", iter);
         println!("d {:?}", conv_checker.delta());
         println!("conv_checker.converged() {:?}", conv_checker.converged());
-        println!(
-            "flat_tail_checker.reached()  {:?}",
-            flat_tail_checker.reached()
-        );
 
         if iter.saturating_sub(min_iters) % check_freq == 0 {
             if iter >= min_iters {
