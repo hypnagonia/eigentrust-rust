@@ -47,6 +47,23 @@ pub fn canonicalize_local_trust_sprs(
     Ok(())
 }
 
+pub fn extract_distrust_sprs(local_trust: &mut TriMat<f64>) -> Result<TriMat<f64>, String> {
+    let (n, _) = local_trust.shape();
+    let mut distrust_triplet = TriMat::new((n, n));
+    let mut new_local_trust_triplet = TriMat::new((n, n));
+
+    for (&value, (row, col)) in local_trust.triplet_iter() {
+        if value >= 0.0 {
+            new_local_trust_triplet.add_triplet(row, col, value);
+        } else {
+            distrust_triplet.add_triplet(row, col, -value);
+        }
+    }
+
+    *local_trust = new_local_trust_triplet;
+    Ok(distrust_triplet)
+}
+
 pub fn canonicalize_local_trust(
     local_trust: &mut CSRMatrix,
     pre_trust: Option<Vector>,
@@ -122,6 +139,49 @@ fn parse_csv_line(line: &str, peer_indices: &mut PeersMap) -> Result<(usize, usi
         1.0
     };
     Ok((from, to, level))
+}
+
+pub fn read_local_trust_from_csv_sprs(csv_data: &str) -> Result<(TriMat<f64>, PeersMap), String> {
+    let mut max_from = 0;
+    let mut max_to = 0;
+    let mut peer_indices = PeersMap::new();
+
+    // First, parse the CSV lines and calculate the dimensions
+    let mut entries: Vec<(usize, usize, f64)> = Vec::new();
+
+    for (count, line) in csv_data.lines().enumerate() {
+        let parsed_result = parse_csv_line(line, &mut peer_indices);
+        match parsed_result {
+            Ok((from, to, level)) => {
+                if from > max_from {
+                    max_from = from;
+                }
+                if to > max_to {
+                    max_to = to;
+                }
+                entries.push((from, to, level));
+            }
+            Err(e) => {
+                return Err(format!(
+                    "Cannot parse local trust CSV record #{}: {:?} {:?}",
+                    count + 1,
+                    e,
+                    line
+                ));
+            }
+        }
+    }
+
+    // Use the max index to determine the matrix dimension
+    let dim = max_from.max(max_to) + 1;
+
+    // Create the TriMat and populate it with entries
+    let mut triplet_matrix = TriMat::new((dim, dim));
+    for (from, to, level) in entries {
+        triplet_matrix.add_triplet(from, to, level);
+    }
+
+    Ok((triplet_matrix, peer_indices))
 }
 
 // todo move csv logic out of this scope, cooentry
