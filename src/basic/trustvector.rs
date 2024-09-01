@@ -1,9 +1,9 @@
 use crate::sparse::entry::Entry;
 use crate::sparse::vector::Vector;
+use sprs::CsVec;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::fmt;
-use sprs::CsVec;
 
 pub fn canonicalize_trust_vector_sprs(v: &mut CsVec<f64>) {
     if canonicalize_sprs(v).is_err() {
@@ -34,7 +34,6 @@ fn canonicalize_sprs(v: &mut CsVec<f64>) -> Result<(), &'static str> {
 
     Ok(())
 }
-
 
 // CanonicalizeTrustVector canonicalizes the trust vector in-place,
 // scaling it so that the elements sum to one,

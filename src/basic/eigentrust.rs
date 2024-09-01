@@ -225,6 +225,8 @@ pub fn compute<'a>(
 
     let localtrust_matrix: CsMat<f64> = sl_triplet.to_csr();
 
+
+    // maybe swap
     let localtrust_matrix = localtrust_matrix.transpose_into();
 
     println!("sprx pretrust {:?}---", pretrust_vector);

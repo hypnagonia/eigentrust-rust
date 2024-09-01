@@ -2,23 +2,29 @@ use super::util::strip_headers;
 use crate::basic::eigentrust::compute;
 use crate::basic::eigentrust::discount_trust_vector;
 use crate::basic::localtrust::{
-    canonicalize_local_trust, extract_distrust, read_local_trust_from_csv,
+    canonicalize_local_trust,
+    extract_distrust,
+    read_local_trust_from_csv,
+    read_local_trust_from_csv_sprs,
 };
 use crate::basic::trustvector::canonicalize_trust_vector;
+use crate::basic::trustvector::canonicalize_trust_vector_sprs;
 use crate::basic::trustvector::read_trust_vector_from_csv;
+use crate::basic::trustvector::read_trust_vector_from_csv_sprs;
 use crate::sparse::entry::Entry;
-use crate::sparse::matrix::{CSMatrix, CSRMatrix};
+use crate::sparse::matrix::{ CSMatrix, CSRMatrix };
 use crate::sparse::vector::Vector;
 use std::collections::HashMap;
 use std::f64::INFINITY;
 use std::fs;
+use sprs::{ CsVec, TriMat, CsMat };
 
 // todo array inputs
 
 pub fn calculate_from_csv(
     localtrust_csv: &str,
     pretrust_csv: &str,
-    alpha: Option<f64>,
+    alpha: Option<f64>
 ) -> Result<Vec<(String, f64)>, String> {
     log::info!("Compute starting...");
 
@@ -29,9 +35,18 @@ pub fn calculate_from_csv(
 
     let (mut local_trust, peers) = read_local_trust_from_csv(&localtrust_csv).unwrap();
 
+    let (mut local_trust_s, peers) = read_local_trust_from_csv_sprs(&localtrust_csv).unwrap();
+
+    //println!("engine go {:?} localtrust\n", local_trust);
+
+    //let localtrust_matrix: CsMat<f64> = local_trust_s.to_csr();
+    //println!("\nengine sprs {:?} localtrust\n", localtrust_matrix.to_dense());
+
     let mut peer_indices = peers.map;
 
     let mut pre_trust = read_trust_vector_from_csv(pretrust_csv, &peer_indices).unwrap();
+
+    let mut pre_trust_s = read_trust_vector_from_csv_sprs(pretrust_csv, &peer_indices).unwrap();
 
     let c_dim = local_trust.cs_matrix.dim().unwrap();
 
@@ -44,9 +59,46 @@ pub fn calculate_from_csv(
         pre_trust.set_dim(c_dim);
     }
 
+    // resize sprs
+    let l_dim = local_trust_s.rows().max(local_trust_s.cols());
+    let p_dim = pre_trust_s.dim();
+    if l_dim < p_dim {
+        let mut resized_matrix = TriMat::new((p_dim, p_dim));
+        for (&value, (row, col)) in local_trust_s.triplet_iter() {
+            resized_matrix.add_triplet(row, col, value);
+        }
+        local_trust_s = resized_matrix;
+    } else if p_dim < l_dim {
+        let mut resized_vec = CsVec::empty(l_dim);
+        for (index, &value) in pre_trust_s.iter() {
+            resized_vec.append(index, value);
+        }
+        pre_trust_s = resized_vec;
+    }
+
+    assert_eq!(
+        local_trust_s.shape().0,
+        pre_trust_s.dim(),
+        "Dimension mismatch: TriMat has {} rows, but CsVec has {} elements.",
+        local_trust_s.shape().0,
+        pre_trust_s.dim()
+    );
+
     canonicalize_trust_vector(&mut pre_trust);
 
+    canonicalize_trust_vector_sprs(&mut pre_trust_s);
+
+    println!("go pre_trust{:?}", pre_trust);
+
+    println!("sprs pre_trust{:?}", pre_trust_s);
+
     let mut discounts = extract_distrust(&mut local_trust).unwrap();
+
+    let mut discounts_s = extract_distrust(&mut local_trust_s).unwrap();
+
+    println!("go pre_trust{:?}", pre_trust);
+
+    println!("sprs pre_trust{:?}", pre_trust_s);
 
     canonicalize_local_trust(&mut local_trust, Some(pre_trust.clone())).unwrap();
 
@@ -101,9 +153,11 @@ mod tests {
 
     #[test]
     fn test_calculate_from_csv_file() {
-        let localtrust_csv = fs::read_to_string("./example/localtrust2.csv")
+        let localtrust_csv = fs
+            ::read_to_string("./example/localtrust2.csv")
             .expect("Failed to read localtrust CSV file");
-        let pretrust_csv = fs::read_to_string("./example/pretrust2.csv")
+        let pretrust_csv = fs
+            ::read_to_string("./example/pretrust2.csv")
             .expect("Failed to read pretrust CSV file");
 
         let entries = calculate_from_csv(&localtrust_csv, &pretrust_csv, None).unwrap();
