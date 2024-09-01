@@ -62,7 +62,7 @@ pub fn calculate_from_csv(
 
         pre_trust_s = resized_vec.clone();
     }
-    
+
     assert_eq!(
         local_trust_s.shape().0,
         pre_trust_s.dim(),
@@ -74,11 +74,8 @@ pub fn calculate_from_csv(
     canonicalize_trust_vector_sprs(&mut pre_trust_s);
     let mut discounts_s = extract_distrust_sprs(&mut local_trust_s).unwrap();
 
-    log::info!("Step 4");
     canonicalize_local_trust_sprs(&mut local_trust_s, Some(&pre_trust_s.clone())).unwrap();
-    log::info!("Step 5");
     canonicalize_local_trust_sprs(&mut discounts_s, None).unwrap();
-
     
     let mut global_trust_s = compute(
         &local_trust_s,

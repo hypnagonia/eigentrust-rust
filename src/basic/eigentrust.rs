@@ -189,8 +189,11 @@ pub fn compute<'a>(
         pre_trust_vector.data().iter().map(|&v| v * a).collect(),
     );
 
+    log::info!("compute step 2");
     let local_trust_matrix: CsMat<f64> = local_trust_triplet.to_csr();
+    log::info!("compute step 3");
     let mut local_trust_matrix = local_trust_matrix.transpose_into();
+    log::info!("compute step 4");
 
     log::info!(
         "Compute started dim={}, num_leaders={}, nnz={}, alpha={}, epsilon={}, check_freq={}",

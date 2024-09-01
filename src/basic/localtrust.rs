@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 pub fn canonicalize_local_trust_sprs(
     local_trust: &mut TriMat<f64>,
-    pre_trust: Option<&CsVec<f64>>
+    pre_trust: Option<&CsVec<f64>>,
 ) -> Result<(), String> {
     let (n, _m) = local_trust.shape();
 
@@ -18,28 +18,34 @@ pub fn canonicalize_local_trust_sprs(
     }
 
     let mut new_trimat = TriMat::with_capacity(local_trust.shape(), local_trust.nnz());
+    let mut row_sums = vec![0.0; n];
 
-    for i in 0..n {
-        let mut row_entries: Vec<(usize, f64)> = local_trust
-            .triplet_iter()
-            .filter(|(_, (row, _))| *row == i)
-            .map(|(&value, (_, col))| (col, value))
-            .collect();
+    // Calculate row sums
+    for (value, (row, _col)) in local_trust.triplet_iter() {
+        row_sums[row] += value;
+    }
 
-        let row_sum: f64 = row_entries
-            .iter()
-            .map(|&(_, value)| value)
-            .sum();
-
+    // Process each entry in the triplet matrix
+    for (value, (row, col)) in local_trust.triplet_iter() {
+        let row_sum = row_sums[row];
         if row_sum == 0.0 {
             if let Some(pre_trust_vec) = pre_trust {
-                for (col, &value) in pre_trust_vec.iter() {
-                    new_trimat.add_triplet(i, col, value);
+                if let Some(&pre_trust_value) = pre_trust_vec.get(row) {
+                    new_trimat.add_triplet(row, col, pre_trust_value);
                 }
             }
         } else {
-            for (col, value) in row_entries {
-                new_trimat.add_triplet(i, col, value / row_sum);
+            new_trimat.add_triplet(row, col, value / row_sum);
+        }
+    }
+
+    // Handle rows with zero sum separately
+    if let Some(pre_trust_vec) = pre_trust {
+        for (row, &row_sum) in row_sums.iter().enumerate() {
+            if row_sum == 0.0 {
+                for (col, &value) in pre_trust_vec.iter() {
+                    new_trimat.add_triplet(row, col, value);
+                }
             }
         }
     }
