@@ -3,7 +3,6 @@ let e
 (async () => {
     e = await import('./pkg/eigentrust.js')
     await e.default()
-    await e.prepare()
 })()
 
 self.onmessage = async function (event) {

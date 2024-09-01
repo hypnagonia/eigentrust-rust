@@ -189,6 +189,7 @@
         const worker = new Worker('worker.js');
         worker.onmessage = function (e) {
             document.getElementById('result').innerHTML = e.data
+            document.getElementById('calculate').classList.remove("disabled")
         };
 
         async function main() {

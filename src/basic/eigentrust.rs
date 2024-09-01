@@ -38,14 +38,18 @@ impl ConvergenceChecker {
         }
     }
 
-    // Updates the checker with another iteration of the trust vector.
     pub fn update(&mut self, t: &Vector) -> Result<(), String> {
-        println!("ConvergenceChecker updating ");
-
         let mut td = Vector::new(self.t.dim, vec![]);
         td.sub_vec(t, &self.t)?;
 
         let d = td.norm2();
+
+        log::debug!(
+            "one iteration={} log10dPace={} log10dRemaining={}",
+            self.iter,
+            (d / self.d).log10(),
+            (d / self.e).log10()
+        );
 
         self.t.assign(t);
         self.d = d;
@@ -82,7 +86,6 @@ impl FlatTailChecker {
         }
     }
 
-    // Updates the checker with another iteration of the trust vector.
     pub fn update(&mut self, t: &Vector, d: f64) {
         let mut entries = t.entries.clone();
         entries.sort_by(|a, b| {
@@ -109,7 +112,6 @@ impl FlatTailChecker {
     }
 }
 
-// FlatTailStats represents statistics about a flat tail.
 pub struct FlatTailStats {
     pub length: usize,
     pub threshold: usize,
@@ -128,9 +130,9 @@ pub fn compute<'a>(
     min_iterations: Option<usize>,
 ) -> Result<Vector, String> {
     if a.is_nan() {
-        return Err("Error: alpha cannot be NaN".to_string())
+        return Err("Error: alpha cannot be NaN".to_string());
     }
-    
+
     let n = c.cs_matrix.major_dim;
     if n == 0 {
         return Err("Empty local trust matrix".to_string());
@@ -140,21 +142,25 @@ pub fn compute<'a>(
         return Err("Dimension mismatch".to_string());
     }
 
-    let check_freq = 1.0;
-    let min_iters = check_freq;
+    log::debug!("{:?}",p.sum());
 
+    let check_freq = 1;
+    let min_iters = check_freq;
 
     let t0 = current_time_millis();
 
     let mut t1 = p.clone();
     let ct = c.transpose()?;
+
     let mut ap = p.clone();
     ap.scale_vec(a, p);
 
     let num_leaders = n;
 
     let mut conv_checker = ConvergenceChecker::new(&t1, e);
-    let mut flat_tail_checker = FlatTailChecker::new(min_iterations.unwrap_or(1), num_leaders);
+
+    let flat_tail = 0;
+    let mut flat_tail_checker = FlatTailChecker::new(flat_tail, num_leaders);
 
     let mut iter = 0;
     let max_iters = max_iterations.unwrap_or(usize::MAX);
@@ -170,43 +176,32 @@ pub fn compute<'a>(
         check_freq
     );
 
-    println!("norm2 debug {:?}", t1.norm2());
-
     while iter < max_iters {
         let iter_t0 = current_time_millis();
-        println!("conv_checker delta {:?}", conv_checker.d);
-        println!(
-            "flat_tail_checker.reached()  {:?}",
-            flat_tail_checker.reached()
-        );
 
-        // todo back to int
-        if (iter as f64 - min_iters as f64) % check_freq == 0.0 {
+        println!("iter {:?}", iter);
+        println!("d {:?}", conv_checker.delta());
+        println!("conv_checker.converged() {:?}", conv_checker.converged());
+
+        if iter.saturating_sub(min_iters) % check_freq == 0 {
             if iter >= min_iters {
                 conv_checker.update(&t1);
+
                 flat_tail_checker.update(&t1, conv_checker.delta());
 
-                if iter >= min_iters && conv_checker.converged() && flat_tail_checker.reached() {
+                if conv_checker.converged() && flat_tail_checker.reached() {
                     break;
                 }
             }
         }
 
-        let t1_clone = t1.clone();
         let mut new_t1 = t1.clone();
-        new_t1.mul_vec(&ct, &t1_clone)?;
-        let t2_clone = new_t1.clone();
-        new_t1.scale_vec(1.0 - a, &t2_clone);
-        t1.add_vec(&new_t1, &ap)?;
+        new_t1.mul_vec(&ct, &t1)?;
+        let mut t2 = new_t1.clone();
+        t2.scale_vec(1.0 - a, &new_t1);
+        t1.add_vec(&t2, &ap)?;
 
         let iter_t1 = current_time_millis();
-        let message = format!(
-            "one iteration time={:?}: iteration={}",
-            iter_t1 - iter_t0,
-            iter
-        );
-
-        log::info!("{:?}", &message);
 
         iter += 1;
     }
@@ -216,14 +211,16 @@ pub fn compute<'a>(
     }
 
     let t1_time = current_time_millis();
+
     log::info!(
-        "Compute finished time={:?}, dim={}, nnz={}, alpha={}, epsilon={}, iterations={}",
-        t1_time - t0,
-        n,
-        ct.cs_matrix.nnz(),
+        "finished: alpha={} dim={} nnz={} epsilon={} flatTail={} iterations={} numLeaders={}",
         a,
-        e,
-        iter
+        n, 
+        ct.cs_matrix.nnz(), 
+        e, 
+        flat_tail, 
+        iter, 
+        num_leaders, 
     );
 
     Ok(t1)
@@ -236,21 +233,16 @@ pub fn discount_trust_vector(t: &mut Vector, discounts: &CSRMatrix) -> Result<()
     'DiscountsLoop: for (distruster, distrusts) in discounts.cs_matrix.entries.iter().enumerate() {
         'T1Loop: loop {
             if i1 >= t1.entries.len() {
-                // No more nonzero trust, remaining distrusters have zero rep
-                // and their distrusts do not matter, so finish
                 break 'DiscountsLoop;
             }
             if t1.entries[i1].index < distruster {
-                // The peer at i1 has no distrust, advance to the next peer
                 i1 += 1;
                 continue 'T1Loop;
             }
             if t1.entries[i1].index == distruster {
-                // Found a match!
                 break 'T1Loop;
             }
             if t1.entries[i1].index > distruster {
-                // Distruster has zero rep, advance to the next distruster
                 continue 'DiscountsLoop;
             }
         }
