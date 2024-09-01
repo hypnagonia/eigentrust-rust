@@ -1,17 +1,21 @@
 use super::util::current_time_millis;
 use super::util::PeersMap;
 use crate::sparse::entry::Entry;
-use crate::sparse::matrix::{CSMatrix, CSRMatrix};
+use crate::sparse::matrix::{ CSMatrix, CSRMatrix };
 use crate::sparse::vector::Vector;
 use std::cmp;
 use std::collections::HashMap;
 use std::error::Error;
 use std::f64;
+use sprs::{CsMat, CsVec, TriMat};
 
 // Canonicalize scales sparse entries in-place so that their values sum to one.
 // If entries sum to zero, Canonicalize returns an error indicating a zero-sum vector.
 pub fn canonicalize(entries: &mut [Entry]) -> Result<(), String> {
-    let sum: f64 = entries.iter().map(|entry| entry.value).sum();
+    let sum: f64 = entries
+        .iter()
+        .map(|entry| entry.value)
+        .sum();
     if sum == 0.0 {
         return Err("Zero sum vector".to_string());
     }
@@ -88,12 +92,11 @@ impl FlatTailChecker {
 
     pub fn update(&mut self, t: &Vector, d: f64) {
         let mut entries = t.entries.clone();
-        entries.sort_by(|a, b| {
-            b.value
-                .partial_cmp(&a.value)
-                .unwrap_or(cmp::Ordering::Equal)
-        });
-        let ranking: Vec<usize> = entries.iter().map(|entry| entry.index).collect();
+        entries.sort_by(|a, b| { b.value.partial_cmp(&a.value).unwrap_or(cmp::Ordering::Equal) });
+        let ranking: Vec<usize> = entries
+            .iter()
+            .map(|entry| entry.index)
+            .collect();
 
         if ranking == self.stats.ranking {
             self.stats.length += 1;
@@ -127,7 +130,7 @@ pub fn compute<'a>(
     a: f64,
     e: f64,
     max_iterations: Option<usize>,
-    min_iterations: Option<usize>,
+    min_iterations: Option<usize>
 ) -> Result<Vector, String> {
     if a.is_nan() {
         return Err("Error: alpha cannot be NaN".to_string());
@@ -142,7 +145,7 @@ pub fn compute<'a>(
         return Err("Dimension mismatch".to_string());
     }
 
-    log::debug!("{:?}",p.sum());
+    log::debug!("{:?}", p.sum());
 
     let check_freq = 1;
     let min_iters = check_freq;
@@ -166,6 +169,44 @@ pub fn compute<'a>(
     let max_iters = max_iterations.unwrap_or(usize::MAX);
     let min_iters = min_iterations.unwrap_or(1);
 
+    let sp = CsVec::new(
+        7,
+        vec![0, 1, 2, 3, 4, 5, 6],
+        vec![
+            0.14285714285714285,
+            0.14285714285714285,
+            0.14285714285714285,
+            0.14285714285714285,
+            0.14285714285714285,
+            0.14285714285714285,
+            0.14285714285714285
+        ]
+    );
+
+    let mut sl_triplet = TriMat::new((7, 7));
+    sl_triplet.add_triplet(0, 1, 11.31571);
+    sl_triplet.add_triplet(2,3, 269916.08616);
+    sl_triplet.add_triplet(4, 5, 3173339.366896588);
+    sl_triplet.add_triplet(6, 5, 46589750.00759474);
+
+    let sl: CsMat<f64> = sl_triplet.to_csr();
+
+    println!("sprx pretrust {:?}", sp);
+    println!("sprx localtrust {:?}", sl_triplet);
+    println!("sprx localtrust {:?}", sl);
+
+    println!("go pretrust");
+    for e in p.entries.iter() {
+        println!("  Index: {:?},", e);
+    }
+
+
+    println!("sprx pretrust");
+    for e in c.cs_matrix.entries.iter() {
+        println!("  Index: {:?},", e);
+    }
+
+
     log::info!(
         "Compute started dim={}, num_leaders={}, nnz={}, alpha={}, epsilon={}, check_freq={}",
         p.dim,
@@ -177,19 +218,19 @@ pub fn compute<'a>(
     );
 
     while iter < max_iters {
-        let iter_t0 = current_time_millis();
-
-        println!("iter {:?}", iter);
-        println!("d {:?}", conv_checker.delta());
-        println!("conv_checker.converged() {:?}", conv_checker.converged());
+        //println!("iter {:?}", iter);
+        //println!("d {:?}", conv_checker.delta());
+        //println!("conv_checker.converged() {:?}", conv_checker.converged());
 
         if iter.saturating_sub(min_iters) % check_freq == 0 {
             if iter >= min_iters {
                 conv_checker.update(&t1);
 
-                flat_tail_checker.update(&t1, conv_checker.delta());
+                // flat_tail_checker.update(&t1, conv_checker.delta());
 
-                if conv_checker.converged() && flat_tail_checker.reached() {
+                if conv_checker.converged() 
+                // && flat_tail_checker.reached() 
+                {
                     break;
                 }
             }
@@ -215,12 +256,12 @@ pub fn compute<'a>(
     log::info!(
         "finished: alpha={} dim={} nnz={} epsilon={} flatTail={} iterations={} numLeaders={}",
         a,
-        n, 
-        ct.cs_matrix.nnz(), 
-        e, 
-        flat_tail, 
-        iter, 
-        num_leaders, 
+        n,
+        ct.cs_matrix.nnz(),
+        e,
+        flat_tail,
+        iter,
+        num_leaders
     );
 
     Ok(t1)
@@ -254,7 +295,7 @@ pub fn discount_trust_vector(t: &mut Vector, discounts: &CSRMatrix) -> Result<()
                 &(Vector {
                     dim: t.dim,
                     entries: distrusts.clone(),
-                }),
+                })
             );
             temp_vec
         };
@@ -299,8 +340,8 @@ mod tests {
                     Entry {
                         index: 3,
                         value: 0.25,
-                    },
-                ],
+                    }
+                ]
             ),
             discounts: CSRMatrix {
                 cs_matrix: CSMatrix {
@@ -318,7 +359,7 @@ mod tests {
                             Entry {
                                 index: 3,
                                 value: 0.5,
-                            },
+                            }
                         ],
                         // 2 - scaled by 0.5 and applied
                         vec![
@@ -329,7 +370,7 @@ mod tests {
                             Entry {
                                 index: 4,
                                 value: 0.75,
-                            },
+                            }
                         ],
                         // 3 - scaled by 0.25 and applied
                         vec![
@@ -340,10 +381,10 @@ mod tests {
                             Entry {
                                 index: 4,
                                 value: 0.5,
-                            },
+                            }
                         ],
                         // 4 - no distrust, also zero global trust (empty)
-                        vec![],
+                        vec![]
                     ],
                 },
             },
@@ -365,8 +406,8 @@ mod tests {
                     Entry {
                         index: 4,
                         value: 0.0 - 0.75 * 0.5 - 0.5 * 0.25,
-                    }, // peer 2 & 3
-                ],
+                    } // peer 2 & 3
+                ]
             ),
         }];
 
@@ -374,11 +415,7 @@ mod tests {
             let mut t = test.t.clone();
             let result = discount_trust_vector(&mut t, &test.discounts);
             assert!(result.is_ok(), "{}: DiscountTrustVector failed", test.name);
-            assert_eq!(
-                t, test.expected,
-                "{}: Vector does not match expected value",
-                test.name
-            );
+            assert_eq!(t, test.expected, "{}: Vector does not match expected value", test.name);
         }
     }
 
@@ -417,8 +454,8 @@ mod tests {
                 Entry {
                     index: 6,
                     value: 0.14285714285714285,
-                },
-            ],
+                }
+            ]
         );
 
         let c = CSRMatrix {
@@ -458,7 +495,7 @@ mod tests {
                         Entry {
                             index: 6,
                             value: 0.14285714285714285,
-                        },
+                        }
                     ],
                     vec![Entry {
                         index: 3,
@@ -492,7 +529,7 @@ mod tests {
                         Entry {
                             index: 6,
                             value: 0.14285714285714285,
-                        },
+                        }
                     ],
                     vec![Entry {
                         index: 1,
@@ -526,7 +563,7 @@ mod tests {
                         Entry {
                             index: 6,
                             value: 0.14285714285714285,
-                        },
+                        }
                     ],
                     vec![Entry {
                         index: 5,
@@ -560,8 +597,8 @@ mod tests {
                         Entry {
                             index: 6,
                             value: 0.14285714285714285,
-                        },
-                    ],
+                        }
+                    ]
                 ],
             },
         };
@@ -596,7 +633,7 @@ mod tests {
                 Entry {
                     index: 6,
                     value: 0.11111110842697292,
-                },
+                }
             ],
         };
         let result = compute(&c, &p, a, e, None, None).unwrap();

@@ -12,6 +12,7 @@ console_error_panic_hook = "0.1"
 console_log = { version = "1.0", features = ["color"]}
 
 [dependencies]
+sprs = "0.11.1"
 ndarray = "0.15"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
