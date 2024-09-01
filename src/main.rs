@@ -29,11 +29,17 @@ fn main() {
     let pretrust_csv =
         fs::read_to_string(pretrust_csv_path).expect("Failed to read pretrust CSV file");
 
-    let result = calculate_from_csv(&localtrust_csv, &pretrust_csv, None).unwrap();
+    let (result, result_old) = calculate_from_csv(&localtrust_csv, &pretrust_csv, None).unwrap();
 
     // println!("{:?}", result);
 
-    for (name, score) in &result {
-        println!("{},{}", name, score);
+    let num_records = 20;
+
+    println!("{:?} {:?}", "result", "result_old");
+    println!("===========================");
+
+    // Compare the first 10 records of both vectors
+    for i in 0..num_records {
+        println!("{:?} {:<?}", result[i], result_old[i]);
     }
 }

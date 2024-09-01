@@ -26,13 +26,13 @@ pub fn canonicalize(entries: &mut [Entry]) -> Result<(), String> {
 
 pub struct ConvergenceChecker {
     iter: usize,
-    t: Vector,
+    t: CsVec<f64>,
     d: f64,
     e: f64,
 }
 
 impl ConvergenceChecker {
-    pub fn new(t0: &Vector, e: f64) -> ConvergenceChecker {
+    pub fn new(t0: &CsVec<f64>, e: f64) -> ConvergenceChecker {
         ConvergenceChecker {
             iter: 0,
             t: t0.clone(),
@@ -41,22 +41,27 @@ impl ConvergenceChecker {
         }
     }
 
-    pub fn update(&mut self, t: &Vector) -> Result<(), String> {
-        let mut td = Vector::new(self.t.dim, vec![]);
-        td.sub_vec(t, &self.t)?;
+    pub fn update(&mut self, t: &CsVec<f64>) -> Result<(), String> {
+        // Create a new vector to store the differences
+        let mut td = CsVec::new(self.t.dim(), Vec::new(), Vec::new());
 
-        let d = td.norm2();
+        // Calculate the difference between t and self.t
+        for (index, &value) in t.iter() {
+            let t_value = self.t.get(index).unwrap_or(&0.0);
+            td.append(index, t_value - value);
+        }
 
-        /*
+        // Compute the 2-norm of the difference vector td
+        let d = td.dot(&td).sqrt();
         log::debug!(
             "one iteration={} log10dPace={} log10dRemaining={}",
             self.iter,
             (d / self.d).log10(),
             (d / self.e).log10()
         );
-         */
 
-        self.t.assign(t);
+        // Assign t to self.t and update the distance
+        self.t = t.clone();
         self.d = d;
         self.iter += 1;
         Ok(())
@@ -153,7 +158,7 @@ pub fn compute<'a>(
     mut c: &CSRMatrix,
     mut p: &Vector,
     mut local_trust_triplet: &TriMat<f64>,
-    mut pretrust_vector_s: &CsVec<f64>,
+    mut pre_trust_vector_s: &CsVec<f64>,
     a: f64,
     e: f64,
     max_iterations: Option<usize>,
@@ -183,7 +188,7 @@ pub fn compute<'a>(
 
     let num_leaders = n;
 
-    let mut conv_checker = ConvergenceChecker::new(&t1, e);
+    let mut conv_checker = ConvergenceChecker::new(&pre_trust_vector_s, e);
 
     let flat_tail = 0;
     let mut flat_tail_checker = FlatTailChecker::new(flat_tail, num_leaders);
@@ -192,44 +197,16 @@ pub fn compute<'a>(
     let max_iters = max_iterations.unwrap_or(usize::MAX);
     let min_iters = min_iterations.unwrap_or(1);
 
-    let mut pretrust_vector = pretrust_vector_s.clone();
-    /*
-        let mut pretrust_vector = CsVec::new(
-            7,
-            vec![0, 1, 2, 3, 4, 5, 6],
-            vec![
-                0.14285714285714285,
-                0.14285714285714285,
-                0.14285714285714285,
-                0.14285714285714285,
-                0.14285714285714285,
-                0.14285714285714285,
-                0.14285714285714285,
-            ],
-        );
-    */
-    let a_pretrust = CsVec::new(
-        pretrust_vector.dim(),
-        pretrust_vector.indices().to_owned(),
-        pretrust_vector.data().iter().map(|&v| v * a).collect(),
+    let mut pre_trust_vector = pre_trust_vector_s.clone();
+
+    let a_pre_trust = CsVec::new(
+        pre_trust_vector.dim(),
+        pre_trust_vector.indices().to_owned(),
+        pre_trust_vector.data().iter().map(|&v| v * a).collect(),
     );
 
-    /*
-        let mut sl_triplet = TriMat::new((7, 7));
-
-        sl_triplet.add_triplet(0, 1, 11.31571);
-        sl_triplet.add_triplet(2, 3, 269916.08616);
-        sl_triplet.add_triplet(4, 5, 3173339.366896588);
-        sl_triplet.add_triplet(6, 5, 46589750.00759474);
-
-        normalize_trimat(&mut sl_triplet);
-
-        canonicalize_local_trust_sprs(&mut sl_triplet, Some(&pretrust_vector));
-
-        println!("localtrust {:?}", sl_triplet);
-    */
-    let localtrust_matrix: CsMat<f64> = local_trust_triplet.to_csr();
-    let mut localtrust_matrix = localtrust_matrix.transpose_into();
+    let local_trust_matrix: CsMat<f64> = local_trust_triplet.to_csr();
+    let mut local_trust_matrix = local_trust_matrix.transpose_into();
 
     /*
     println!("sprx pretrust {:?}---", pretrust_vector);
@@ -248,9 +225,9 @@ pub fn compute<'a>(
 
     log::info!(
         "Compute started dim={}, num_leaders={}, nnz={}, alpha={}, epsilon={}, check_freq={}",
-        pretrust_vector.dim(),
+        pre_trust_vector.dim(),
         num_leaders,
-        localtrust_matrix.nnz(),
+        local_trust_matrix.nnz(),
         a,
         e,
         check_freq
@@ -259,7 +236,7 @@ pub fn compute<'a>(
     while iter < max_iters {
         if iter.saturating_sub(min_iters) % check_freq == 0 {
             if iter >= min_iters {
-                conv_checker.update(&t1);
+                conv_checker.update(&pre_trust_vector);
 
                 // flat_tail_checker.update(&t1, conv_checker.delta());
 
@@ -277,14 +254,14 @@ pub fn compute<'a>(
         t2.scale_vec(1.0 - a, &new_t1); // depr
         t1.add_vec(&t2, &ap)?; // depr
 
-        let mut new_vector = &localtrust_matrix * &pretrust_vector;
+        let mut new_vector = &local_trust_matrix * &pre_trust_vector;
 
         for (i, value) in new_vector.iter_mut() {
             *value *= 1.0 - a;
-            *value += a_pretrust.get(i).copied().unwrap_or(0.0);
+            *value += a_pre_trust.get(i).copied().unwrap_or(0.0);
         }
 
-        pretrust_vector = new_vector;
+        pre_trust_vector = new_vector;
 
         //println!("new t1 {:?}", pretrust_vector);
         //println!("go t1 {:?}", t1);
@@ -307,7 +284,7 @@ pub fn compute<'a>(
         num_leaders
     );
     // todo
-    Ok((t1, pretrust_vector))
+    Ok((t1, pre_trust_vector))
 }
 
 pub fn discount_trust_vector(t: &mut Vector, discounts: &CSRMatrix) -> Result<(), String> {

@@ -24,7 +24,7 @@ pub fn calculate_from_csv(
     localtrust_csv: &str,
     pretrust_csv: &str,
     alpha: Option<f64>,
-) -> Result<Vec<(String, f64)>, String> {
+) -> Result<(Vec<(String, f64)>, Vec<(String, f64)>), String> {
     log::info!("Compute starting...");
 
     let a = alpha.unwrap_or(0.5);
@@ -90,10 +90,6 @@ pub fn calculate_from_csv(
 
     canonicalize_trust_vector_sprs(&mut pre_trust_s);
 
-    println!("go pre_trust{:?}", pre_trust);
-
-    println!("sprs pre_trust{:?}", pre_trust_s);
-
     let mut discounts = extract_distrust(&mut local_trust).unwrap();
 
     let mut discounts_s = extract_distrust_sprs(&mut local_trust_s).unwrap();
@@ -121,8 +117,8 @@ pub fn calculate_from_csv(
     )
     .unwrap();
 
-    log::debug!("trust_scores {:?}", trust_scores);
-    log::debug!("global_trust_s {:?}", global_trust_s);
+    //log::debug!("trust_scores {:?}", trust_scores);
+    //log::debug!("global_trust_s {:?}", global_trust_s);
 
     let mut trust_scores2 = trust_scores.clone();
     discount_trust_vector(&mut trust_scores2, &discounts)?;
@@ -130,12 +126,14 @@ pub fn calculate_from_csv(
 
     let mut entries = vec![];
 
-    /*
+    let mut entries_old = vec![];
+
+    
     for e in &trust_scores.entries {
         let name_ref = peers.map_reversed.get(&e.index).unwrap();
         let name = name_ref.clone();
-        entries.push((name, e.value));
-    }*/
+        entries_old.push((name, e.value));
+    }
 
     for (index, &value) in global_trust_s.iter() {
         if let Some(name_ref) = peers.map_reversed.get(&index) {
@@ -146,7 +144,9 @@ pub fn calculate_from_csv(
 
     entries.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
 
-    Ok(entries)
+    entries_old.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+
+    Ok((entries, entries_old))
 }
 
 #[cfg(test)]

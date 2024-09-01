@@ -136,7 +136,12 @@ pub fn read_trust_vector_from_csv_sprs(
         log::warn!("Pretrust contains {} duplicate peers", duplicate_count);
     }
 
-    Ok(CsVec::new(max_peer + 1, indices, values))
+    let mut combined: Vec<(usize, f64)> = indices.into_iter().zip(values.into_iter()).collect();
+    combined.sort_by(|a, b| a.0.cmp(&b.0));
+    let (sorted_indices, sorted_values): (Vec<usize>, Vec<f64>) = combined.into_iter().unzip();
+
+
+    Ok(CsVec::new(max_peer + 1, sorted_indices, sorted_values))
 }
 
 // todo move csv logic out of this scope
