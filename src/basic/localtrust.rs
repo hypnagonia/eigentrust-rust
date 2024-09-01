@@ -171,11 +171,8 @@ pub fn read_local_trust_from_csv_sprs(csv_data: &str) -> Result<(TriMat<f64>, Pe
             }
         }
     }
-
-    // Use the max index to determine the matrix dimension
     let dim = max_from.max(max_to) + 1;
 
-    // Create the TriMat and populate it with entries
     let mut triplet_matrix = TriMat::new((dim, dim));
     for (from, to, level) in entries {
         triplet_matrix.add_triplet(from, to, level);

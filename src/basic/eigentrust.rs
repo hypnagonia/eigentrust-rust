@@ -152,16 +152,18 @@ fn normalize_trimat(trimat: &mut TriMat<f64>) {
 pub fn compute<'a>(
     mut c: &CSRMatrix,
     mut p: &Vector,
+    mut local_trust_triplet: &TriMat<f64>,
+    mut pretrust_vector_s: &CsVec<f64>,
     a: f64,
     e: f64,
     max_iterations: Option<usize>,
     min_iterations: Option<usize>,
-) -> Result<Vector, String> {
+) -> Result<(Vector, CsVec<f64>), String> {
     if a.is_nan() {
         return Err("Error: alpha cannot be NaN".to_string());
     }
 
-    let n = c.cs_matrix.major_dim;
+    let (n, _) = local_trust_triplet.shape();
     if n == 0 {
         return Err("Empty local trust matrix".to_string());
     }
@@ -190,45 +192,46 @@ pub fn compute<'a>(
     let max_iters = max_iterations.unwrap_or(usize::MAX);
     let min_iters = min_iterations.unwrap_or(1);
 
-    let mut pretrust_vector = CsVec::new(
-        7,
-        vec![0, 1, 2, 3, 4, 5, 6],
-        vec![
-            0.14285714285714285,
-            0.14285714285714285,
-            0.14285714285714285,
-            0.14285714285714285,
-            0.14285714285714285,
-            0.14285714285714285,
-            0.14285714285714285,
-        ],
-    );
-
+    let mut pretrust_vector = pretrust_vector_s.clone();
+    /*
+        let mut pretrust_vector = CsVec::new(
+            7,
+            vec![0, 1, 2, 3, 4, 5, 6],
+            vec![
+                0.14285714285714285,
+                0.14285714285714285,
+                0.14285714285714285,
+                0.14285714285714285,
+                0.14285714285714285,
+                0.14285714285714285,
+                0.14285714285714285,
+            ],
+        );
+    */
     let a_pretrust = CsVec::new(
         pretrust_vector.dim(),
         pretrust_vector.indices().to_owned(),
         pretrust_vector.data().iter().map(|&v| v * a).collect(),
     );
 
-    let mut sl_triplet = TriMat::new((7, 7));
+    /*
+        let mut sl_triplet = TriMat::new((7, 7));
 
-    sl_triplet.add_triplet(0, 1, 11.31571);
-    sl_triplet.add_triplet(2, 3, 269916.08616);
-    sl_triplet.add_triplet(4, 5, 3173339.366896588);
-    sl_triplet.add_triplet(6, 5, 46589750.00759474);
+        sl_triplet.add_triplet(0, 1, 11.31571);
+        sl_triplet.add_triplet(2, 3, 269916.08616);
+        sl_triplet.add_triplet(4, 5, 3173339.366896588);
+        sl_triplet.add_triplet(6, 5, 46589750.00759474);
 
-    normalize_trimat(&mut sl_triplet);
+        normalize_trimat(&mut sl_triplet);
 
-    canonicalize_local_trust_sprs(&mut sl_triplet, Some(&pretrust_vector));
+        canonicalize_local_trust_sprs(&mut sl_triplet, Some(&pretrust_vector));
 
-    println!("localtrust {:?}", sl_triplet);
+        println!("localtrust {:?}", sl_triplet);
+    */
+    let localtrust_matrix: CsMat<f64> = local_trust_triplet.to_csr();
+    let mut localtrust_matrix = localtrust_matrix.transpose_into();
 
-    let localtrust_matrix: CsMat<f64> = sl_triplet.to_csr();
-
-
-    // maybe swap
-    let localtrust_matrix = localtrust_matrix.transpose_into();
-
+    /*
     println!("sprx pretrust {:?}---", pretrust_vector);
 
     println!("sprx localtrust \n{:?}---", localtrust_matrix.to_dense());
@@ -241,13 +244,13 @@ pub fn compute<'a>(
     println!("go localtrust----");
     for e in c.cs_matrix.entries.iter() {
         println!("  Index: {:?},", e);
-    }
+    } */
 
     log::info!(
         "Compute started dim={}, num_leaders={}, nnz={}, alpha={}, epsilon={}, check_freq={}",
-        p.dim,
+        pretrust_vector.dim(),
         num_leaders,
-        t1.nnz(),
+        localtrust_matrix.nnz(),
         a,
         e,
         check_freq
@@ -283,8 +286,8 @@ pub fn compute<'a>(
 
         pretrust_vector = new_vector;
 
-        println!("new t1 {:?}", pretrust_vector);
-        println!("go t1 {:?}", t1);
+        //println!("new t1 {:?}", pretrust_vector);
+        //println!("go t1 {:?}", t1);
 
         iter += 1;
     }
@@ -303,8 +306,8 @@ pub fn compute<'a>(
         iter,
         num_leaders
     );
-
-    Ok(t1)
+    // todo
+    Ok((t1, pretrust_vector))
 }
 
 pub fn discount_trust_vector(t: &mut Vector, discounts: &CSRMatrix) -> Result<(), String> {
@@ -342,6 +345,62 @@ pub fn discount_trust_vector(t: &mut Vector, discounts: &CSRMatrix) -> Result<()
 
         let t2 = t.clone();
         t.sub_vec(&t2, &scaled_distrust_vec)?;
+
+        i1 += 1;
+    }
+    Ok(())
+}
+
+pub fn discount_trust_vector_sprs(
+    t: &mut CsVec<f64>,
+    discounts: &TriMat<f64>,
+) -> Result<(), String> {
+    let mut i1 = 0;
+    let t1 = t.clone();
+
+    // Iterate over each entry in the TriMat (row, col, value)
+    'DiscountsLoop: for (_, (distruster, _)) in discounts.triplet_iter() {
+        // Extract the relevant vector of discounts
+        let mut distrusts = CsVec::empty(t.dim());
+        for (value, (row, col)) in discounts.triplet_iter() {
+            if row == distruster {
+                distrusts.append(col, *value);
+            }
+        }
+
+        'T1Loop: loop {
+            if i1 >= t1.nnz() {
+                break 'DiscountsLoop;
+            }
+            if t1.indices()[i1] < distruster {
+                i1 += 1;
+                continue 'T1Loop;
+            }
+            if t1.indices()[i1] == distruster {
+                break 'T1Loop;
+            }
+            if t1.indices()[i1] > distruster {
+                continue 'DiscountsLoop;
+            }
+        }
+
+        // Scale the distrust vector
+        let scaled_distrust_vec = {
+            let mut temp_vec = CsVec::empty(t.dim());
+            for (index, &value) in distrusts.iter() {
+                temp_vec.append(index, t1[i1] * value);
+            }
+            temp_vec
+        };
+
+        // Subtract the scaled distrust vector from t
+        for (index, value) in scaled_distrust_vec.iter() {
+            if let Some(t_value) = t.get_mut(index) {
+                *t_value -= value;
+            } else {
+                t.append(index, -value);
+            }
+        }
 
         i1 += 1;
     }
