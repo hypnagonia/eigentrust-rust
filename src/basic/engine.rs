@@ -54,7 +54,7 @@ pub fn calculate_from_csv(
             pre_trust_s.indices().to_vec(),
             pre_trust_s.data().to_vec(),
         );
-        for i in 0..l_dim {
+        for i in p_dim..l_dim {
             if resized_vec.get(i).is_none() {
                 resized_vec.append(i, 0.0);
             }
