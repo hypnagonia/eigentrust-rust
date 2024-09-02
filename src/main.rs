@@ -31,15 +31,5 @@ fn main() {
 
     let result = calculate_from_csv(&localtrust_csv, &pretrust_csv, None).unwrap();
 
-    // println!("{:?}", result);
-
-    let num_records = 20;
-
-
-    println!("===========================");
-
-    // Compare the first 10 records of both vectors
-    for i in 0..num_records {
-        println!("{:?}", result[i]);
-    }
+    println!("{:?}", result);
 }

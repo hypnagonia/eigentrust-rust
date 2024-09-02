@@ -121,27 +121,18 @@ pub struct FlatTailStats {
     pub ranking: Vec<usize>,
 }
 
-fn normalize_trimat(trimat: &mut TriMat<f64>) {
-    let (rows, _cols) = trimat.shape();
-    let mut row_sums = vec![0.0; rows];
+fn remove_zero_entries(vec: CsVec<f64>) -> CsVec<f64> {
+    let mut indices = Vec::new();
+    let mut data = Vec::new();
 
-    for (value, (row, _col)) in trimat.triplet_iter() {
-        row_sums[row] += value;
-    }
-
-    println!("row_sums {:?}", row_sums);
-    let mut normalized_trimat = TriMat::with_capacity(trimat.shape(), trimat.nnz());
-
-    for (value, (row, col)) in trimat.triplet_iter() {
-        if row_sums[row] != 0.0 {
-            println!("value {} {}", value, row_sums[row]);
-            normalized_trimat.add_triplet(row, col, value / row_sums[row]);
-        } else {
-            normalized_trimat.add_triplet(row, col, 0.0); // handle rows that sum to 0
+    for (index, &value) in vec.iter() {
+        if value != 0.0 {
+            indices.push(index);
+            data.push(value);
         }
     }
 
-    *trimat = normalized_trimat;
+    CsVec::new(vec.dim(), indices, data)
 }
 
 // Compute function implements the EigenTrust algorithm.
@@ -250,8 +241,9 @@ pub fn compute<'a>(
         iter,
         num_leaders
     );
-    // todo
-    Ok(pre_trust_vector)
+    
+    let global_trust = remove_zero_entries(pre_trust_vector);
+    Ok(global_trust)
 }
 
 pub fn discount_trust_vector_sprs(
