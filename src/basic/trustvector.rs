@@ -1,4 +1,3 @@
-use crate::sparse::entry::Entry;
 use sprs::CsVec;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;

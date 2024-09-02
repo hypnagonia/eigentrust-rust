@@ -6,7 +6,6 @@ use std::process;
 use crate::basic::engine::calculate_from_csv;
 use crate::basic::util::init_logger;
 pub mod basic;
-pub mod sparse;
 use sprs::{CsMat, CsVec};
 
 fn main() {

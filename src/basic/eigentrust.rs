@@ -1,26 +1,11 @@
 use super::util::current_time_millis;
 use super::util::PeersMap;
-use crate::sparse::entry::Entry;
 use sprs::{CsMat, CsVec, TriMat};
 use std::cmp;
 use std::collections::HashMap;
 use std::error::Error;
 use std::f64;
-
 use super::localtrust::canonicalize_local_trust_sprs;
-
-// Canonicalize scales sparse entries in-place so that their values sum to one.
-// If entries sum to zero, Canonicalize returns an error indicating a zero-sum vector.
-pub fn canonicalize(entries: &mut [Entry]) -> Result<(), String> {
-    let sum: f64 = entries.iter().map(|entry| entry.value).sum();
-    if sum == 0.0 {
-        return Err("Zero sum vector".to_string());
-    }
-    for entry in entries.iter_mut() {
-        entry.value /= sum;
-    }
-    Ok(())
-}
 
 pub struct ConvergenceChecker {
     iter: usize,

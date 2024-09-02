@@ -1,7 +1,4 @@
 use super::util::PeersMap;
-use crate::sparse::entry::CooEntry;
-use crate::sparse::entry::Entry;
-
 use sprs::{CsVec, TriMat};
 use std::collections::HashMap;
 

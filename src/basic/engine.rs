@@ -1,15 +1,12 @@
 use super::util::strip_headers;
 use crate::basic::eigentrust::compute;
-
 use crate::basic::eigentrust::discount_trust_vector_sprs;
 use crate::basic::localtrust::{
     canonicalize_local_trust_sprs, extract_distrust_sprs, read_local_trust_from_csv_sprs,
 };
 
 use crate::basic::trustvector::canonicalize_trust_vector_sprs;
-
 use crate::basic::trustvector::read_trust_vector_from_csv_sprs;
-use crate::sparse::entry::Entry;
 use sprs::{CsMat, CsVec, TriMat};
 use std::collections::HashMap;
 use std::f64::INFINITY;
