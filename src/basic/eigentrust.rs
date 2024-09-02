@@ -46,12 +46,12 @@ impl ConvergenceChecker {
             td.append(index, t_value - value);
         }
         let d = td.dot(&td).sqrt();
-        //log::debug!(
-         //   "one iteration={} log10dPace={} log10dRemaining={}",
-          //  self.iter,
-          //  (d / self.d).log10(),
-           // (d / self.e).log10()
-        //);
+        log::debug!(
+            "one iteration={} log10dPace={} log10dRemaining={}",
+            self.iter,
+            (d / self.d).log10(),
+            (d / self.e).log10()
+        );
 
         self.t = t.clone();
         self.d = d;
@@ -92,7 +92,7 @@ impl FlatTailChecker {
         // Clone and sort the non-zero entries in descending order by value
         let mut entries: Vec<_> = t.iter().collect();
         entries.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(cmp::Ordering::Equal));
-        
+
         // Extract the ranking by index
         let ranking: Vec<usize> = entries.iter().map(|(index, _)| *index).collect();
 
@@ -144,7 +144,7 @@ pub fn compute<'a>(
     e: f64,
     max_iterations: Option<usize>,
     min_iterations: Option<usize>,
-) -> Result<CsVec<f64>, String>  {
+) -> Result<CsVec<f64>, String> {
     if a.is_nan() {
         return Err("Error: alpha cannot be NaN".to_string());
     }
@@ -212,7 +212,6 @@ pub fn compute<'a>(
             }
         }
 
-        
         let mut new_vector = &local_trust_matrix * &pre_trust_vector;
         let mut values: Vec<f64> = Vec::with_capacity(n);
         for i in 0..n {
@@ -240,7 +239,7 @@ pub fn compute<'a>(
         iter,
         num_leaders
     );
-    
+
     let global_trust = remove_zero_entries(pre_trust_vector);
     Ok(global_trust)
 }

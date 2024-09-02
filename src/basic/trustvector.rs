@@ -1,6 +1,6 @@
 use crate::sparse::entry::Entry;
 use sprs::CsVec;
-use std::collections::{ HashMap, HashSet };
+use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::fmt;
 
@@ -21,10 +21,7 @@ pub fn canonicalize_trust_vector_sprs(v: &mut CsVec<f64>) {
 // Helper function to canonicalize a sparse vector in-place.
 // Returns an error if the vector is a zero vector.
 fn canonicalize_sprs(v: &mut CsVec<f64>) -> Result<(), &'static str> {
-    let sum: f64 = v
-        .iter()
-        .map(|(_, value)| *value)
-        .sum();
+    let sum: f64 = v.iter().map(|(_, value)| *value).sum();
 
     if sum == 0.0 {
         return Err("Zero sum vector");
@@ -45,7 +42,7 @@ enum DuplicateHandling {
 
 pub fn read_trust_vector_from_csv_sprs(
     input: &str,
-    peer_indices: &HashMap<String, usize>
+    peer_indices: &HashMap<String, usize>,
 ) -> Result<CsVec<f64>, String> {
     let mut count = 0;
     let mut max_peer = 0;
@@ -69,7 +66,10 @@ pub fn read_trust_vector_from_csv_sprs(
                 })?;
                 let level = if fields.len() >= 2 {
                     parse_trust_level(fields[1]).map_err(|e| {
-                        format!("Invalid trust level {:?} in line {}: {}", fields[1], count, e)
+                        format!(
+                            "Invalid trust level {:?} in line {}: {}",
+                            fields[1], count, e
+                        )
                     })?
                 } else {
                     1.0
@@ -122,5 +122,7 @@ fn parse_peer_id(peer_str: &str, peer_indices: &HashMap<String, usize>) -> Resul
 }
 
 fn parse_trust_level(level_str: &str) -> Result<f64, String> {
-    level_str.parse::<f64>().map_err(|_| format!("Invalid trust level: {}", level_str))
+    level_str
+        .parse::<f64>()
+        .map_err(|_| format!("Invalid trust level: {}", level_str))
 }

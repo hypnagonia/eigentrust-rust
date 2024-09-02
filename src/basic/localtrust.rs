@@ -2,7 +2,7 @@ use super::util::PeersMap;
 use crate::sparse::entry::CooEntry;
 use crate::sparse::entry::Entry;
 
-use sprs::{ CsVec, TriMat };
+use sprs::{CsVec, TriMat};
 use std::collections::HashMap;
 
 pub fn canonicalize_local_trust_sprs(
@@ -81,7 +81,9 @@ fn parse_csv_line(line: &str, peer_indices: &mut PeersMap) -> Result<(usize, usi
     let from = peer_indices.insert_or_get(fields[0].to_string());
     let to = peer_indices.insert_or_get(fields[1].to_string());
     let level = if fields.len() >= 3 {
-        fields[2].parse::<f64>().map_err(|_| "Invalid trust level")?
+        fields[2]
+            .parse::<f64>()
+            .map_err(|_| "Invalid trust level")?
     } else {
         1.0
     };
@@ -109,14 +111,12 @@ pub fn read_local_trust_from_csv_sprs(csv_data: &str) -> Result<(TriMat<f64>, Pe
                 entries.push((from, to, level));
             }
             Err(e) => {
-                return Err(
-                    format!(
-                        "Cannot parse local trust CSV record #{}: {:?} {:?}",
-                        count + 1,
-                        e,
-                        line
-                    )
-                );
+                return Err(format!(
+                    "Cannot parse local trust CSV record #{}: {:?} {:?}",
+                    count + 1,
+                    e,
+                    line
+                ));
             }
         }
     }
@@ -148,13 +148,13 @@ mod tests {
             local_trust: CSRMatrix::new(
                 3,
                 3,
-                vec![(0, 0, 100.0), (0, 1, -50.0), (0, 2, -50.0), (2, 0, -100.0)]
+                vec![(0, 0, 100.0), (0, 1, -50.0), (0, 2, -50.0), (2, 0, -100.0)],
             ),
             expected_trust: CSRMatrix::new(3, 3, vec![(0, 0, 100.0)]),
             expected_distrust: CSRMatrix::new(
                 3,
                 3,
-                vec![(0, 1, 50.0), (0, 2, 50.0), (2, 0, 100.0)]
+                vec![(0, 1, 50.0), (0, 2, 50.0), (2, 0, 100.0)],
             ),
         }];
 
@@ -163,14 +163,12 @@ mod tests {
             let distrust = extract_distrust(&mut local_trust).expect("Failed to extract distrust");
 
             assert_eq!(
-                local_trust,
-                test.expected_trust,
+                local_trust, test.expected_trust,
                 "{}: local trust does not match expected value",
                 test.name
             );
             assert_eq!(
-                distrust,
-                test.expected_distrust,
+                distrust, test.expected_distrust,
                 "{}: distrust does not match expected value",
                 test.name
             );

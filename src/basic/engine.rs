@@ -3,8 +3,7 @@ use crate::basic::eigentrust::compute;
 
 use crate::basic::eigentrust::discount_trust_vector_sprs;
 use crate::basic::localtrust::{
-     canonicalize_local_trust_sprs, 
-    extract_distrust_sprs,  read_local_trust_from_csv_sprs,
+    canonicalize_local_trust_sprs, extract_distrust_sprs, read_local_trust_from_csv_sprs,
 };
 
 use crate::basic::trustvector::canonicalize_trust_vector_sprs;
@@ -22,7 +21,7 @@ pub fn calculate_from_csv(
     localtrust_csv: &str,
     pretrust_csv: &str,
     alpha: Option<f64>,
-) -> Result<Vec<(String, f64)>, String>  {
+) -> Result<Vec<(String, f64)>, String> {
     log::info!("Compute starting...");
 
     let a = alpha.unwrap_or(0.5);
@@ -77,21 +76,13 @@ pub fn calculate_from_csv(
 
     canonicalize_local_trust_sprs(&mut local_trust_s, Some(&pre_trust_s.clone())).unwrap();
     canonicalize_local_trust_sprs(&mut discounts_s, None).unwrap();
-    
-    let mut global_trust_s = compute(
-        &local_trust_s,
-        &pre_trust_s,
-        a,
-        e,
-        None,
-        None,
-    )
-    .unwrap();
+
+    let mut global_trust_s = compute(&local_trust_s, &pre_trust_s, a, e, None, None).unwrap();
 
     discount_trust_vector_sprs(&mut global_trust_s, &discounts_s)?;
 
     let mut entries = vec![];
-    
+
     for (index, &value) in global_trust_s.iter() {
         if let Some(name_ref) = peers.map_reversed.get(&index) {
             let name = name_ref.clone();
