@@ -46,12 +46,12 @@ impl ConvergenceChecker {
             td.append(index, t_value - value);
         }
         let d = td.dot(&td).sqrt();
-        log::debug!(
-            "one iteration={} log10dPace={} log10dRemaining={}",
-            self.iter,
-            (d / self.d).log10(),
-            (d / self.e).log10()
-        );
+        //log::debug!(
+         //   "one iteration={} log10dPace={} log10dRemaining={}",
+          //  self.iter,
+          //  (d / self.d).log10(),
+           // (d / self.e).log10()
+        //);
 
         self.t = t.clone();
         self.d = d;
@@ -180,11 +180,11 @@ pub fn compute<'a>(
         pre_trust_vector.data().iter().map(|&v| v * a).collect(),
     );
 
-    log::info!("compute step 2");
+    // todo
+    log::info!("slow step");
     let local_trust_matrix: CsMat<f64> = local_trust_triplet.to_csr();
-    log::info!("compute step 3");
+
     let mut local_trust_matrix = local_trust_matrix.transpose_into();
-    log::info!("compute step 4");
 
     log::info!(
         "Compute started dim={}, num_leaders={}, nnz={}, alpha={}, epsilon={}, check_freq={}",
@@ -196,13 +196,14 @@ pub fn compute<'a>(
         check_freq
     );
 
+    let indices: Vec<usize> = (0..n).collect();
+
     while iter < max_iters {
         if iter.saturating_sub(min_iters) % check_freq == 0 {
             if iter >= min_iters {
                 conv_checker.update(&pre_trust_vector);
 
                 // flat_tail_checker.update(&t1, conv_checker.delta());
-
                 if conv_checker.converged()
                 // && flat_tail_checker.reached()
                 {
@@ -211,19 +212,17 @@ pub fn compute<'a>(
             }
         }
 
-
+        
         let mut new_vector = &local_trust_matrix * &pre_trust_vector;
-
-        for (i, value) in new_vector.iter_mut() {
-            *value *= 1.0 - a;
-            *value += a_pre_trust.get(i).copied().unwrap_or(0.0);
+        let mut values: Vec<f64> = Vec::with_capacity(n);
+        for i in 0..n {
+            let mut value = new_vector.get(i).copied().unwrap_or(0.0);
+            value *= 1.0 - a;
+            value += a_pre_trust.get(i).copied().unwrap_or(0.0);
+            values.push(value);
         }
 
-        pre_trust_vector = new_vector;
-
-        //println!("new t1 {:?}", pretrust_vector);
-        //println!("go t1 {:?}", t1);
-
+        pre_trust_vector = CsVec::new(n, indices.clone(), values);
         iter += 1;
     }
 
@@ -252,10 +251,7 @@ pub fn discount_trust_vector_sprs(
 ) -> Result<(), String> {
     let mut i1 = 0;
     let t1 = t.clone();
-
-    // Iterate over each entry in the TriMat (row, col, value)
     'DiscountsLoop: for (_, (distruster, _)) in discounts.triplet_iter() {
-        // Extract the relevant vector of discounts
         let mut distrusts = CsVec::empty(t.dim());
         for (value, (row, col)) in discounts.triplet_iter() {
             if row == distruster {
@@ -279,7 +275,6 @@ pub fn discount_trust_vector_sprs(
             }
         }
 
-        // Scale the distrust vector
         let scaled_distrust_vec = {
             let mut temp_vec = CsVec::empty(t.dim());
             for (index, &value) in distrusts.iter() {
@@ -288,7 +283,6 @@ pub fn discount_trust_vector_sprs(
             temp_vec
         };
 
-        // Subtract the scaled distrust vector from t
         for (index, value) in scaled_distrust_vec.iter() {
             if let Some(t_value) = t.get_mut(index) {
                 *t_value -= value;

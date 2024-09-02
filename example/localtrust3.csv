@@ -1,0 +1,5 @@
+i,j,v
+alice,bob,2
+bob,charlie,2
+alice,charlie,1
+charlie,bob,1
