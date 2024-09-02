@@ -19,7 +19,7 @@ impl ConvergenceChecker {
         ConvergenceChecker {
             iter: 0,
             t: t0.clone(),
-            d: 2.0 * e, // initial sentinel
+            d: 2.0 * e, 
             e,
         }
     }
