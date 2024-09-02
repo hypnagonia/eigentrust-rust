@@ -213,12 +213,12 @@ pub fn compute<'a>(
     log::info!(
         "finished: alpha={} dim={} nnz={} epsilon={} flatTail={} iterations={} numLeaders={}",
         a,
-        n, 
-        ct.cs_matrix.nnz(), 
-        e, 
-        flat_tail, 
-        iter, 
-        num_leaders, 
+        n,
+        ct.cs_matrix.nnz(),
+        e,
+        flat_tail,
+        iter,
+        num_leaders,
     );
 
     Ok(t1)

@@ -1,8 +1,7 @@
-use super::entry::{Entry, CooEntry};
+use super::entry::{CooEntry, Entry};
 use super::vector::Vector;
 use std::cmp::Ordering;
 use std::ptr;
-
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct CSMatrix {
@@ -179,7 +178,6 @@ impl CSRMatrix {
         })
     }
 }
-
 
 #[cfg(test)]
 mod tests {
