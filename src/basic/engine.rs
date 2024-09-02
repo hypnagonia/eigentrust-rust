@@ -22,19 +22,15 @@ pub fn calculate_from_csv(
 ) -> Result<Vec<(String, f64)>, String> {
     log::info!("Compute starting...");
 
-    let a = alpha.unwrap_or(0.5);
-
     let localtrust_csv = strip_headers(localtrust_csv);
     let pretrust_csv = strip_headers(pretrust_csv);
 
     let (mut local_trust, peers) = read_local_trust_from_csv(&localtrust_csv).unwrap();
-
     let mut peer_indices = peers.map;
-
     let mut pre_trust = read_trust_vector_from_csv(pretrust_csv, &peer_indices).unwrap();
-
     let c_dim = local_trust.cs_matrix.dim().unwrap();
 
+    let a = alpha.unwrap_or(0.5);
     let e = 1e-6 / (c_dim as f64);
 
     let p_dim = pre_trust.dim;
@@ -44,11 +40,14 @@ pub fn calculate_from_csv(
         pre_trust.set_dim(c_dim);
     }
 
+    
     canonicalize_trust_vector(&mut pre_trust);
 
     let mut discounts = extract_distrust(&mut local_trust).unwrap();
 
+    log::debug!("Dimensions {} {}",c_dim, p_dim);
     canonicalize_local_trust(&mut local_trust, Some(pre_trust.clone())).unwrap();
+
     canonicalize_local_trust(&mut discounts, None).unwrap();
 
     let mut trust_scores = compute(&local_trust, &pre_trust, a, e, None, None).unwrap();
