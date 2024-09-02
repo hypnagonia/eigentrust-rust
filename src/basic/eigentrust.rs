@@ -203,10 +203,8 @@ pub fn compute<'a>(
             if iter >= min_iters {
                 conv_checker.update(&pre_trust_vector);
 
-                // flat_tail_checker.update(&t1, conv_checker.delta());
-                if conv_checker.converged()
-                // && flat_tail_checker.reached()
-                {
+                flat_tail_checker.update(&pre_trust_vector, conv_checker.delta());
+                if conv_checker.converged() && flat_tail_checker.reached() {
                     break;
                 }
             }
