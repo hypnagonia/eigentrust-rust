@@ -14,8 +14,6 @@ cargo test
 ```
 wasm-pack build --target web
 
-wasm-pack build --target web --release
-
 python3 -m http.server
 
 http://localhost:8000/index.html

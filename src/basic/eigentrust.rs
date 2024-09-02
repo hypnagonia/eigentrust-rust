@@ -142,8 +142,6 @@ pub fn compute<'a>(
         return Err("Dimension mismatch".to_string());
     }
 
-    log::debug!("{:?}",p.sum());
-
     let check_freq = 1;
     let min_iters = check_freq;
 
@@ -167,7 +165,7 @@ pub fn compute<'a>(
     let min_iters = min_iterations.unwrap_or(1);
 
     log::info!(
-        "Compute started dim={}, num_leaders={}, nnz={}, alpha={}, epsilon={}, check_freq={}",
+        "Compute started dim={}, numLeaders={}, nnz={}, alpha={}, epsilon={}, checkFreq={}",
         p.dim,
         num_leaders,
         t1.nnz(),
@@ -179,9 +177,9 @@ pub fn compute<'a>(
     while iter < max_iters {
         let iter_t0 = current_time_millis();
 
-        println!("iter {:?}", iter);
-        println!("d {:?}", conv_checker.delta());
-        println!("conv_checker.converged() {:?}", conv_checker.converged());
+        //println!("iter {:?}", iter);
+        //println!("d {:?}", conv_checker.delta());
+        //println!("conv_checker.converged() {:?}", conv_checker.converged());
 
         if iter.saturating_sub(min_iters) % check_freq == 0 {
             if iter >= min_iters {
