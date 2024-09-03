@@ -68,10 +68,12 @@ pub fn calculate_from_csv(
         pre_trust_s.dim()
     );
 
+    log::debug!("preparing");
     canonicalize_trust_vector_sprs(&mut pre_trust_s);
     let mut discounts_s = extract_distrust_sprs(&mut local_trust_s).unwrap();
 
     canonicalize_local_trust_sprs(&mut local_trust_s, Some(&pre_trust_s.clone())).unwrap();
+    log::debug!("preparing 2");
     canonicalize_local_trust_sprs(&mut discounts_s, None).unwrap();
 
     let mut global_trust_s = compute(&local_trust_s, &pre_trust_s, a, e, None, None).unwrap();

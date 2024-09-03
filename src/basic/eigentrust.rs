@@ -1,3 +1,4 @@
+use super::localtrust::canonicalize_local_trust_sprs;
 use super::util::current_time_millis;
 use super::util::PeersMap;
 use sprs::{CsMat, CsVec, TriMat};
@@ -5,7 +6,6 @@ use std::cmp;
 use std::collections::HashMap;
 use std::error::Error;
 use std::f64;
-use super::localtrust::canonicalize_local_trust_sprs;
 
 pub struct ConvergenceChecker {
     iter: usize,
@@ -19,7 +19,7 @@ impl ConvergenceChecker {
         ConvergenceChecker {
             iter: 0,
             t: t0.clone(),
-            d: 2.0 * e, 
+            d: 2.0 * e,
             e,
         }
     }
