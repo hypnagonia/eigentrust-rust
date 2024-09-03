@@ -14,6 +14,7 @@ pub fn canonicalize_local_trust_sprs(
         }
     }
 
+    let mut new_trimat = TriMat::with_capacity(local_trust.shape(), local_trust.nnz());
     let mut row_sums = vec![0.0; n];
 
     // Calculate row sums
@@ -21,31 +22,32 @@ pub fn canonicalize_local_trust_sprs(
         row_sums[row] += value;
     }
 
-    // Normalize or replace with pre-trust values in place
+    // Process each entry in the triplet matrix
     for (value, (row, col)) in local_trust.triplet_iter() {
         let row_sum = row_sums[row];
         if row_sum == 0.0 {
             if let Some(pre_trust_vec) = pre_trust {
                 if let Some(&pre_trust_value) = pre_trust_vec.get(row) {
-                    // *value = pre_trust_value;
-                    local_trust.add_triplet(row, col, pre_trust_value);
+                    new_trimat.add_triplet(row, col, pre_trust_value);
                 }
             }
         } else {
-            local_trust.add_triplet(row, col, value / row_sum);
+            new_trimat.add_triplet(row, col, value / row_sum);
         }
     }
-/*
+
     // Handle rows with zero sum separately
     if let Some(pre_trust_vec) = pre_trust {
         for (row, &row_sum) in row_sums.iter().enumerate() {
             if row_sum == 0.0 {
-                for (col, &pre_trust_value) in pre_trust_vec.iter() {
-                    local_trust.add_triplet(row, col, pre_trust_value);
+                for (col, &value) in pre_trust_vec.iter() {
+                    new_trimat.add_triplet(row, col, value);
                 }
             }
         }
-    } */
+    }
+
+    *local_trust = new_trimat;
 
     Ok(())
 }
