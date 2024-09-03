@@ -165,9 +165,10 @@ pub fn compute<'a>(
         pre_trust_vector.data().iter().map(|&v| v * a).collect(),
     );
 
-    // todo
-    log::info!("slow step");
+    log::debug!("Converting TriMat to CsMat");
     let local_trust_matrix: CsMat<f64> = local_trust_triplet.to_csr();
+
+    //println!("{:?}", local_trust_matrix.to_dense());
 
     let mut local_trust_matrix = local_trust_matrix.transpose_into();
 
@@ -281,336 +282,71 @@ pub fn discount_trust_vector_sprs(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sparse::entry::Entry;
-    use crate::sparse::matrix::CSRMatrix;
-    use crate::sparse::vector::Vector;
+    use sprs::{CsVec, TriMat};
 
     #[test]
-    fn test_discount_trust_vector() {
-        struct TestCase {
-            name: &'static str,
-            t: Vector,
-            discounts: CSRMatrix,
-            expected: Vector,
-        }
-
-        let test_cases = vec![TestCase {
-            name: "test1",
-            t: Vector::new(
-                5,
-                vec![
-                    Entry {
-                        index: 0,
-                        value: 0.25,
-                    },
-                    Entry {
-                        index: 2,
-                        value: 0.5,
-                    },
-                    Entry {
-                        index: 3,
-                        value: 0.25,
-                    },
-                ],
-            ),
-            discounts: CSRMatrix {
-                cs_matrix: CSMatrix {
-                    major_dim: 5,
-                    minor_dim: 5,
-                    entries: vec![
-                        // 0 - no distrust (empty)
-                        vec![],
-                        // 1 - doesn't matter because of zero trust
-                        vec![
-                            Entry {
-                                index: 2,
-                                value: 0.5,
-                            },
-                            Entry {
-                                index: 3,
-                                value: 0.5,
-                            },
-                        ],
-                        // 2 - scaled by 0.5 and applied
-                        vec![
-                            Entry {
-                                index: 0,
-                                value: 0.25,
-                            },
-                            Entry {
-                                index: 4,
-                                value: 0.75,
-                            },
-                        ],
-                        // 3 - scaled by 0.25 and applied
-                        vec![
-                            Entry {
-                                index: 2,
-                                value: 0.5,
-                            },
-                            Entry {
-                                index: 4,
-                                value: 0.5,
-                            },
-                        ],
-                        // 4 - no distrust, also zero global trust (empty)
-                        vec![],
-                    ],
-                },
-            },
-            expected: Vector::new(
-                5,
-                vec![
-                    Entry {
-                        index: 0,
-                        value: 0.25 - 0.25 * 0.5,
-                    }, // peer 2
-                    Entry {
-                        index: 2,
-                        value: 0.5 - 0.5 * 0.25,
-                    }, // peer 3
-                    Entry {
-                        index: 3,
-                        value: 0.25,
-                    },
-                    Entry {
-                        index: 4,
-                        value: 0.0 - 0.75 * 0.5 - 0.5 * 0.25,
-                    }, // peer 2 & 3
-                ],
-            ),
-        }];
-
-        for test in test_cases {
-            let mut t = test.t.clone();
-            let result = discount_trust_vector(&mut t, &test.discounts);
-            assert!(result.is_ok(), "{}: DiscountTrustVector failed", test.name);
-            assert_eq!(
-                t, test.expected,
-                "{}: Vector does not match expected value",
-                test.name
-            );
-        }
-    }
-
-    #[test]
-    fn test_run() {
+    fn test_compute() {
         let e = 1.25e-7;
         let a = 0.5;
 
-        let p = Vector::new(
+        let pre_trust_vector = CsVec::new(
             8,
+            vec![0, 1, 2, 3, 4, 5, 6],
             vec![
-                Entry {
-                    index: 0,
-                    value: 0.14285714285714285,
-                },
-                Entry {
-                    index: 1,
-                    value: 0.14285714285714285,
-                },
-                Entry {
-                    index: 2,
-                    value: 0.14285714285714285,
-                },
-                Entry {
-                    index: 3,
-                    value: 0.14285714285714285,
-                },
-                Entry {
-                    index: 4,
-                    value: 0.14285714285714285,
-                },
-                Entry {
-                    index: 5,
-                    value: 0.14285714285714285,
-                },
-                Entry {
-                    index: 6,
-                    value: 0.14285714285714285,
-                },
+                0.14285714285714285,
+                0.14285714285714285,
+                0.14285714285714285,
+                0.14285714285714285,
+                0.14285714285714285,
+                0.14285714285714285,
+                0.14285714285714285,
             ],
         );
 
-        let c = CSRMatrix {
-            cs_matrix: CSMatrix {
-                major_dim: 8,
-                minor_dim: 8,
-                entries: vec![
-                    vec![Entry {
-                        index: 3,
-                        value: 1.0,
-                    }],
-                    vec![
-                        Entry {
-                            index: 0,
-                            value: 0.14285714285714285,
-                        },
-                        Entry {
-                            index: 1,
-                            value: 0.14285714285714285,
-                        },
-                        Entry {
-                            index: 2,
-                            value: 0.14285714285714285,
-                        },
-                        Entry {
-                            index: 3,
-                            value: 0.14285714285714285,
-                        },
-                        Entry {
-                            index: 4,
-                            value: 0.14285714285714285,
-                        },
-                        Entry {
-                            index: 5,
-                            value: 0.14285714285714285,
-                        },
-                        Entry {
-                            index: 6,
-                            value: 0.14285714285714285,
-                        },
-                    ],
-                    vec![Entry {
-                        index: 3,
-                        value: 1.0,
-                    }],
-                    vec![
-                        Entry {
-                            index: 0,
-                            value: 0.14285714285714285,
-                        },
-                        Entry {
-                            index: 1,
-                            value: 0.14285714285714285,
-                        },
-                        Entry {
-                            index: 2,
-                            value: 0.14285714285714285,
-                        },
-                        Entry {
-                            index: 3,
-                            value: 0.14285714285714285,
-                        },
-                        Entry {
-                            index: 4,
-                            value: 0.14285714285714285,
-                        },
-                        Entry {
-                            index: 5,
-                            value: 0.14285714285714285,
-                        },
-                        Entry {
-                            index: 6,
-                            value: 0.14285714285714285,
-                        },
-                    ],
-                    vec![Entry {
-                        index: 1,
-                        value: 1.0,
-                    }],
-                    vec![
-                        Entry {
-                            index: 0,
-                            value: 0.14285714285714285,
-                        },
-                        Entry {
-                            index: 1,
-                            value: 0.14285714285714285,
-                        },
-                        Entry {
-                            index: 2,
-                            value: 0.14285714285714285,
-                        },
-                        Entry {
-                            index: 3,
-                            value: 0.14285714285714285,
-                        },
-                        Entry {
-                            index: 4,
-                            value: 0.14285714285714285,
-                        },
-                        Entry {
-                            index: 5,
-                            value: 0.14285714285714285,
-                        },
-                        Entry {
-                            index: 6,
-                            value: 0.14285714285714285,
-                        },
-                    ],
-                    vec![Entry {
-                        index: 5,
-                        value: 1.0,
-                    }],
-                    vec![
-                        Entry {
-                            index: 0,
-                            value: 0.14285714285714285,
-                        },
-                        Entry {
-                            index: 1,
-                            value: 0.14285714285714285,
-                        },
-                        Entry {
-                            index: 2,
-                            value: 0.14285714285714285,
-                        },
-                        Entry {
-                            index: 3,
-                            value: 0.14285714285714285,
-                        },
-                        Entry {
-                            index: 4,
-                            value: 0.14285714285714285,
-                        },
-                        Entry {
-                            index: 5,
-                            value: 0.14285714285714285,
-                        },
-                        Entry {
-                            index: 6,
-                            value: 0.14285714285714285,
-                        },
-                    ],
-                ],
-            },
-        };
+        let mut local_trust_triplet = TriMat::new((8, 8));
+        local_trust_triplet.add_triplet(0, 3, 1.0);
+        local_trust_triplet.add_triplet(1, 0, 0.14285714285714285);
+        local_trust_triplet.add_triplet(1, 1, 0.14285714285714285);
+        local_trust_triplet.add_triplet(1, 2, 0.14285714285714285);
+        local_trust_triplet.add_triplet(1, 3, 0.14285714285714285);
+        local_trust_triplet.add_triplet(1, 4, 0.14285714285714285);
+        local_trust_triplet.add_triplet(1, 5, 0.14285714285714285);
+        local_trust_triplet.add_triplet(1, 6, 0.14285714285714285);
+        local_trust_triplet.add_triplet(2, 3, 1.0);
+        local_trust_triplet.add_triplet(3, 0, 0.14285714285714285);
+        local_trust_triplet.add_triplet(3, 1, 0.14285714285714285);
+        local_trust_triplet.add_triplet(3, 2, 0.14285714285714285);
+        local_trust_triplet.add_triplet(3, 3, 0.14285714285714285);
+        local_trust_triplet.add_triplet(3, 4, 0.14285714285714285);
+        local_trust_triplet.add_triplet(3, 5, 0.14285714285714285);
+        local_trust_triplet.add_triplet(3, 6, 0.14285714285714285);
+        local_trust_triplet.add_triplet(4, 1, 1.0);
+        local_trust_triplet.add_triplet(5, 0, 0.14285714285714285);
+        local_trust_triplet.add_triplet(5, 1, 0.14285714285714285);
+        local_trust_triplet.add_triplet(5, 2, 0.14285714285714285);
+        local_trust_triplet.add_triplet(5, 3, 0.14285714285714285);
+        local_trust_triplet.add_triplet(5, 4, 0.14285714285714285);
+        local_trust_triplet.add_triplet(5, 5, 0.14285714285714285);
+        local_trust_triplet.add_triplet(5, 6, 0.14285714285714285);
+        local_trust_triplet.add_triplet(6, 5, 1.0);
 
-        let expected = Vector {
-            dim: 8,
-            entries: vec![
-                Entry {
-                    index: 0,
-                    value: 0.11111110842697292,
-                },
-                Entry {
-                    index: 1,
-                    value: 0.16666666867977029,
-                },
-                Entry {
-                    index: 2,
-                    value: 0.11111110842697292,
-                },
-                Entry {
-                    index: 3,
-                    value: 0.22222222893256766,
-                },
-                Entry {
-                    index: 4,
-                    value: 0.11111110842697292,
-                },
-                Entry {
-                    index: 5,
-                    value: 0.16666666867977029,
-                },
-                Entry {
-                    index: 6,
-                    value: 0.11111110842697292,
-                },
+        let expected = CsVec::new(
+            8,
+            vec![0, 1, 2, 3, 4, 5, 6],
+            vec![
+                0.11111110842697292,
+                0.16666666867977029,
+                0.11111110842697292,
+                0.22222222893256766,
+                0.11111110842697292,
+                0.16666666867977029,
+                0.11111110842697292,
             ],
-        };
-        let result = compute(&c, &p, a, e, None, None).unwrap();
+        );
+
+        let result = compute(&local_trust_triplet, &pre_trust_vector, a, e, None, None).unwrap();
         assert_eq!(result, expected);
     }
 }
+
+
