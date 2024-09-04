@@ -10,16 +10,17 @@ repository = "https://github.com/hypnagonia/eigentrust-wasm"
 wasm-bindgen = { version = "=0.2.93" }
 console_error_panic_hook = "0.1"
 console_log = { version = "1.0", features = ["color"]}
+sprs = { version="0.11.1"}
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+env_logger = "0.10"
+sprs = { version="0.11.1", feature = "multi_thread"}
 
 [dependencies]
-ndarray = "0.15"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-getrandom = { version = "0.2.2", features = ["js"] }
 log = "0.4"
-env_logger = "0.10"
 rayon = "1.8"
-num_cpus = "1.13"
 
 [lib]
 crate-type = ["cdylib"]

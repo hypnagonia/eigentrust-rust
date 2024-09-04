@@ -1,34 +1,33 @@
-use crate::sparse::entry::Entry;
-use crate::sparse::vector::Vector;
+use sprs::CsVec;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::fmt;
 
-// CanonicalizeTrustVector canonicalizes the trust vector in-place,
-// scaling it so that the elements sum to one,
-// or making it a uniform vector that sums to one if it's a zero vector.
-pub fn canonicalize_trust_vector(v: &mut Vector) {
-    if canonicalize(&mut v.entries).is_err() {
-        let dim = v.entries.len();
-        let c = 1.0 / dim as f64;
-        v.entries.clear();
+pub fn canonicalize_trust_vector_sprs(v: &mut CsVec<f64>) {
+    if canonicalize_sprs(v).is_err() {
+        let dim = v.dim();
+        let c = 1.0 / (dim as f64);
+        let mut indices = Vec::with_capacity(dim);
+        let mut values = Vec::with_capacity(dim);
         for i in 0..dim {
-            v.entries.push(Entry { index: i, value: c });
+            indices.push(i);
+            values.push(c);
         }
+        *v = CsVec::new(dim, indices, values);
     }
 }
 
-// Helper function to canonicalize a vector in-place.
+// Helper function to canonicalize a sparse vector in-place.
 // Returns an error if the vector is a zero vector.
-fn canonicalize(entries: &mut Vec<Entry>) -> Result<(), &'static str> {
-    let sum: f64 = entries.iter().map(|entry| entry.value).sum();
+fn canonicalize_sprs(v: &mut CsVec<f64>) -> Result<(), &'static str> {
+    let sum: f64 = v.iter().map(|(_, value)| *value).sum();
 
     if sum == 0.0 {
         return Err("Zero sum vector");
     }
 
-    for entry in entries.iter_mut() {
-        entry.value /= sum;
+    for (_, value) in v.iter_mut() {
+        *value /= sum;
     }
 
     Ok(())
@@ -40,25 +39,26 @@ enum DuplicateHandling {
     Fail,
 }
 
-// todo move csv logic out of this scope
-pub fn read_trust_vector_from_csv(
+pub fn read_trust_vector_from_csv_sprs(
     input: &str,
     peer_indices: &HashMap<String, usize>,
-) -> Result<Vector, String> {
+) -> Result<CsVec<f64>, String> {
     let mut count = 0;
-    let mut max_peer = -1;
-    let mut entries = Vec::new();
+    let mut max_peer = 0;
+    let mut indices = Vec::new();
+    let mut values = Vec::new();
     let mut seen_peers = HashSet::new();
-    let remove_dublicates = true;
     let duplicate_handling = DuplicateHandling::Allow;
-    let mut dublicate_count = 0;
+    let mut duplicate_count = 0;
 
     for line in input.lines() {
         count += 1;
         let fields: Vec<&str> = line.split(',').collect();
 
         let (peer, level) = match fields.len() {
-            0 => return Err(format!("Too few fields in line {}", count)),
+            0 => {
+                return Err(format!("Too few fields in line {}", count));
+            }
             _ => {
                 let peer = parse_peer_id(fields[0], peer_indices).map_err(|e| {
                     format!("Invalid peer {:?} in line {}: {}", fields[0], count, e)
@@ -83,32 +83,34 @@ pub fn read_trust_vector_from_csv(
                     return Err(format!("Duplicate peer {:?} in line {}", fields[0], count));
                 }
                 DuplicateHandling::Remove => {
-                    dublicate_count += 1;
+                    duplicate_count += 1;
                     continue;
                 }
                 DuplicateHandling::Allow => {
-                    dublicate_count += 1;
+                    duplicate_count += 1;
                 }
             }
         } else {
             seen_peers.insert(peer);
         }
 
-        if max_peer < peer as isize {
-            max_peer = peer as isize;
+        if peer > max_peer {
+            max_peer = peer;
         }
 
-        entries.push(Entry {
-            index: peer,
-            value: level,
-        });
+        indices.push(peer);
+        values.push(level);
     }
 
-    if dublicate_count > 0 {
-        log::warn!("Pretrust contains {} duplicate peers", dublicate_count);
+    if duplicate_count > 0 {
+        log::warn!("Pretrust contains {} duplicate peers", duplicate_count);
     }
 
-    Ok(Vector::new((max_peer + 1) as usize, entries))
+    let mut combined: Vec<(usize, f64)> = indices.into_iter().zip(values.into_iter()).collect();
+    combined.sort_by(|a, b| a.0.cmp(&b.0));
+    let (sorted_indices, sorted_values): (Vec<usize>, Vec<f64>) = combined.into_iter().unzip();
+
+    Ok(CsVec::new(max_peer + 1, sorted_indices, sorted_values))
 }
 
 fn parse_peer_id(peer_str: &str, peer_indices: &HashMap<String, usize>) -> Result<usize, String> {

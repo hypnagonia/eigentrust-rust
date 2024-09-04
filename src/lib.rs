@@ -3,7 +3,6 @@ use crate::basic::engine::calculate_from_csv;
 use wasm_bindgen::prelude::*;
 
 pub mod basic;
-pub mod sparse;
 use crate::basic::util::init_logger;
 use std::panic;
 use std::str;

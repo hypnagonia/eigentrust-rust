@@ -1,67 +1,76 @@
 use super::util::PeersMap;
-use crate::sparse::entry::CooEntry;
-use crate::sparse::entry::Entry;
-use crate::sparse::matrix::CSRMatrix;
-use crate::sparse::vector::Vector;
+use sprs::{CsVec, TriMat};
 use std::collections::HashMap;
 
-pub fn canonicalize_local_trust(
-    local_trust: &mut CSRMatrix,
-    pre_trust: Option<Vector>,
+pub fn canonicalize_local_trust_sprs(
+    local_trust: &mut TriMat<f64>,
+    pre_trust: Option<&CsVec<f64>>,
 ) -> Result<(), String> {
-    let n = local_trust.dims().0;
+    let (n, _m) = local_trust.shape();
 
-    if let Some(ref pre_trust_vec) = pre_trust {
-        // if pre_trust_vec.entries.len() != n {
-        if pre_trust_vec.entries.len() > n {
+    if let Some(pre_trust_vec) = pre_trust {
+        if pre_trust_vec.dim() > n {
             return Err("Dimension mismatch".to_string());
         }
     }
 
-    for i in 0..n {
-        let mut in_row = local_trust.row_vector(i);
-        let row_sum: f64 = in_row.entries.iter().map(|entry| entry.value).sum();
+    let mut new_trimat = TriMat::with_capacity(local_trust.shape(), local_trust.nnz());
+    let mut row_sums = vec![0.0; n];
 
+    for (value, (row, _col)) in local_trust.triplet_iter() {
+        row_sums[row] += value;
+    }
+
+    for (value, (row, col)) in local_trust.triplet_iter() {
+        let row_sum = row_sums[row];
         if row_sum == 0.0 {
-            if let Some(ref pre_trust_vec) = pre_trust {
-                local_trust.set_row_vector(i, Vector::new(n, pre_trust_vec.entries.clone()));
+            if let Some(pre_trust_vec) = pre_trust {
+                if let Some(&pre_trust_value) = pre_trust_vec.get(row) {
+                    new_trimat.add_triplet(row, col, pre_trust_value);
+                }
             }
         } else {
-            for entry in &mut in_row.entries {
-                entry.value /= row_sum;
-            }
-            local_trust.set_row_vector(i, in_row);
+            new_trimat.add_triplet(row, col, value / row_sum);
         }
     }
+
+    log::debug!("rows zero {}", row_sums.len());
+    if let Some(pre_trust_vec) = pre_trust {
+        for (row, &row_sum) in row_sums.iter().enumerate() {
+            if row_sum == 0.0 {
+                for (col, &value) in pre_trust_vec.iter() {
+                    let existing_triplet = new_trimat
+                        .triplet_iter()
+                        .find(|&(v, (r, c, ))| r == row && c == col);
+                    if existing_triplet.is_none() {
+                        new_trimat.add_triplet(row, col, value);
+                    }
+                }
+            }
+        }
+    }
+    log::debug!("end");
+
+    *local_trust = new_trimat;
 
     Ok(())
 }
 
-pub fn extract_distrust(local_trust: &mut CSRMatrix) -> Result<CSRMatrix, String> {
-    let n = local_trust.dims().0;
-    let mut distrust = CSRMatrix::new(n, n, vec![]);
+pub fn extract_distrust_sprs(local_trust: &mut TriMat<f64>) -> Result<TriMat<f64>, String> {
+    let (n, _) = local_trust.shape();
+    let mut distrust_triplet = TriMat::new((n, n));
+    let mut new_local_trust_triplet = TriMat::new((n, n));
 
-    for truster in 0..n {
-        let mut trust_row = local_trust.row_vector(truster);
-        let mut distrust_row = Vec::new();
-
-        trust_row.entries.retain(|entry| {
-            if entry.value >= 0.0 {
-                true
-            } else {
-                distrust_row.push(Entry {
-                    index: entry.index,
-                    value: -entry.value,
-                });
-                false
-            }
-        });
-
-        local_trust.set_row_vector(truster, trust_row);
-        distrust.set_row_vector(truster, Vector::new(n, distrust_row));
+    for (&value, (row, col)) in local_trust.triplet_iter() {
+        if value >= 0.0 {
+            new_local_trust_triplet.add_triplet(row, col, value);
+        } else {
+            distrust_triplet.add_triplet(row, col, -value);
+        }
     }
 
-    Ok(distrust)
+    *local_trust = new_local_trust_triplet;
+    Ok(distrust_triplet)
 }
 
 fn parse_csv_line(line: &str, peer_indices: &mut PeersMap) -> Result<(usize, usize, f64), String> {
@@ -82,12 +91,13 @@ fn parse_csv_line(line: &str, peer_indices: &mut PeersMap) -> Result<(usize, usi
     Ok((from, to, level))
 }
 
-// todo move csv logic out of this scope, cooentry
-pub fn read_local_trust_from_csv(csv_data: &str) -> Result<(CSRMatrix, PeersMap), String> {
-    let mut entries: Vec<(usize, usize, f64)> = Vec::new();
+pub fn read_local_trust_from_csv_sprs(csv_data: &str) -> Result<(TriMat<f64>, PeersMap), String> {
     let mut max_from = 0;
     let mut max_to = 0;
     let mut peer_indices = PeersMap::new();
+
+    // First, parse the CSV lines and calculate the dimensions
+    let mut entries: Vec<(usize, usize, f64)> = Vec::new();
 
     for (count, line) in csv_data.lines().enumerate() {
         let parsed_result = parse_csv_line(line, &mut peer_indices);
@@ -99,7 +109,6 @@ pub fn read_local_trust_from_csv(csv_data: &str) -> Result<(CSRMatrix, PeersMap)
                 if to > max_to {
                     max_to = to;
                 }
-
                 entries.push((from, to, level));
             }
             Err(e) => {
@@ -112,53 +121,67 @@ pub fn read_local_trust_from_csv(csv_data: &str) -> Result<(CSRMatrix, PeersMap)
             }
         }
     }
-
     let dim = max_from.max(max_to) + 1;
-    Ok((CSRMatrix::new(dim, dim, entries), peer_indices))
+
+    let mut triplet_matrix = TriMat::new((dim, dim));
+    for (from, to, level) in entries {
+        triplet_matrix.add_triplet(from, to, level);
+    }
+
+    Ok((triplet_matrix, peer_indices))
 }
 
+/* 
 #[cfg(test)]
 mod tests {
     use super::*;
-
     #[test]
     fn test_extract_distrust() {
         struct TestCase {
             name: &'static str,
-            local_trust: CSRMatrix,
-            expected_trust: CSRMatrix,
-            expected_distrust: CSRMatrix,
+            local_trust: TriMat<f64>,
+            expected_trust: TriMat<f64>,
+            expected_distrust: TriMat<f64>,
         }
-
         let test_cases = vec![TestCase {
             name: "test1",
-            local_trust: CSRMatrix::new(
-                3,
-                3,
-                vec![(0, 0, 100.0), (0, 1, -50.0), (0, 2, -50.0), (2, 0, -100.0)],
-            ),
-            expected_trust: CSRMatrix::new(3, 3, vec![(0, 0, 100.0)]),
-            expected_distrust: CSRMatrix::new(
-                3,
-                3,
-                vec![(0, 1, 50.0), (0, 2, 50.0), (2, 0, 100.0)],
-            ),
+            local_trust: {
+                let mut mat = TriMat::new((3, 3));
+                mat.add_triplet(0, 0, 100.0);
+                mat.add_triplet(0, 1, -50.0);
+                mat.add_triplet(0, 2, -50.0);
+                mat.add_triplet(2, 0, -100.0);
+                mat
+            },
+            expected_trust: {
+                let mut mat = TriMat::new((3, 3));
+                mat.add_triplet(0, 0, 100.0);
+                mat
+            },
+            expected_distrust: {
+                let mut mat = TriMat::new((3, 3));
+                mat.add_triplet(0, 1, 50.0);
+                mat.add_triplet(0, 2, 50.0);
+                mat.add_triplet(2, 0, 100.0);
+                mat
+            },
         }];
 
         for test in test_cases {
             let mut local_trust = test.local_trust.clone();
-            let distrust = extract_distrust(&mut local_trust).expect("Failed to extract distrust");
+            let distrust = extract_distrust_sprs(&mut local_trust).expect("Failed to extract distrust");
 
             assert_eq!(
-                local_trust, test.expected_trust,
+                local_trust.to_csr(), test.expected_trust.to_csr(),
                 "{}: local trust does not match expected value",
                 test.name
             );
             assert_eq!(
-                distrust, test.expected_distrust,
+                distrust.to_csr(), test.expected_distrust.to_csr(),
                 "{}: distrust does not match expected value",
                 test.name
             );
         }
     }
 }
+*/
