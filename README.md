@@ -21,17 +21,17 @@ http://localhost:8000/index.html
 
 ## Call from browser environment
 ```js
-import init, { run } from './pkg/eigentrust_js.js'
-    async function main() {
-        await init()
-        
-        console.time("eigentrust job")
-        const result = run(localtrustBytes, pretrustBytes, 0.5)
-        console.timeEnd("eigentrust job")
-        console.log({result})
-    }
+const worker = new Worker('worker.js');
+        worker.onmessage = function (e) {
+            console.log(e.data)
+        };
 
-main()
+const localtrustBytes = `alice,bob,2\nbob,charlie,2\nalice,charlie,1\ncharlie,bob,1\n`
+const pretrustBytes = 'alice,1\n'
+const localtrust = new TextEncoder().encode(localtrustBytes)
+const pretrust = new TextEncoder().encode(pretrustBytes)
+const alpha = 0.5
+worker.postMessage({ localtrust, pretrust, alpha });
 ```
 
 ## Run OS native
