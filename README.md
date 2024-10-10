@@ -22,9 +22,9 @@ http://localhost:8000/index.html
 ## Call from browser environment
 ```js
 const worker = new Worker('worker.js');
-        worker.onmessage = function (e) {
-            console.log(e.data)
-        };
+worker.onmessage = function (e) {
+        console.log(e.data)
+};
 
 const localtrustBytes = `alice,bob,2\nbob,charlie,2\nalice,charlie,1\ncharlie,bob,1\n`
 const pretrustBytes = 'alice,1\n'
