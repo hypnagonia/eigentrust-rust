@@ -26,12 +26,12 @@ worker.onmessage = function (e) {
         console.log(e.data)
 };
 
-const localtrustBytes = `alice,bob,2\nbob,charlie,2\nalice,charlie,1\ncharlie,bob,1\n`
-const pretrustBytes = 'alice,1\n'
-const localtrust = new TextEncoder().encode(localtrustBytes)
-const pretrust = new TextEncoder().encode(pretrustBytes)
+const localtrust = `alice,bob,2\nbob,charlie,2\nalice,charlie,1\ncharlie,bob,1\n`
+const pretrust = 'alice,1\n'
+const localtrustBytes = new TextEncoder().encode(localtrust)
+const pretrustBytes = new TextEncoder().encode(pretrust)
 const alpha = 0.5
-worker.postMessage({ localtrust, pretrust, alpha });
+worker.postMessage({ localtrustBytes, pretrustBytes, alpha });
 ```
 
 ## Run OS native
