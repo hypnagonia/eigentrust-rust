@@ -112,12 +112,11 @@ jobs:
       - name: Unused dependencies
         run: cargo machete
 
-  # Reports public API changes that need a version bump, compared with main.
-  # Informational until the first crates.io release; then remove continue-on-error.
+  # Fails when a PR breaks the public API without bumping the version (0.2 -> 0.3).
+  # Additions pass.
   semver:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
         with:

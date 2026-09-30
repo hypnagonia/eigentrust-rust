@@ -50,4 +50,7 @@ Keep the public surface small: modules private by default, export through `lib.r
 - Duplicate edges and duplicate pre-trust peers: the last one wins.
 - Weights must be finite and non-negative; distrust (negative weights) is rejected.
 - The iteration stops after `max_iterations` (default 10,000) with `EigenTrustError::NotConverged`.
-- Version 0.2.0 is not on crates.io yet; the CI semver job is informational until it is.
+- Published on crates.io as `eigentrust` and `eigentrust-cli`. The CI semver job fails on PRs
+  that break the public API without a version bump. Bump all three crates' versions (and the
+  `eigentrust = "x.y"` requirements in cli/ and wasm/) together.
+- Release: `cargo publish -p eigentrust`, then `cargo publish -p eigentrust-cli`.

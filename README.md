@@ -6,6 +6,8 @@
 </p>
 
 <p align="center">
+  <a href="https://crates.io/crates/eigentrust"><img alt="crates.io" src="https://img.shields.io/crates/v/eigentrust"></a>
+  <a href="https://docs.rs/eigentrust"><img alt="docs.rs" src="https://img.shields.io/docsrs/eigentrust"></a>
   <a href="https://github.com/hypnagonia/eigentrust-rust/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/hypnagonia/eigentrust-rust/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://eigentrust.jenyadoesapps.com"><img alt="Live demo" src="https://img.shields.io/badge/demo-live-3a3fd0"></a>
   <img alt="Rust" src="https://img.shields.io/badge/Rust-2021-b7410e?logo=rust&logoColor=white">
@@ -29,7 +31,7 @@ It is the algorithm from the [EigenTrust paper](https://nlp.stanford.edu/pubs/ei
 
 ```toml
 [dependencies]
-eigentrust = { git = "https://github.com/hypnagonia/eigentrust-rust" }
+eigentrust = "0.2"
 ```
 
 ```rust
@@ -60,12 +62,12 @@ fn main() -> Result<(), eigentrust::EigenTrustError> {
   - `parallel` runs the iteration on all cores with rayon.
 - There are no required dependencies beyond `log`, and the same code builds for `wasm32`.
 
-The crate documentation (`cargo doc --open`) covers the exact input rules and convergence behavior. See also [`examples/`](examples).
+The [documentation on docs.rs](https://docs.rs/eigentrust) covers the exact input rules and convergence behavior. See also [`examples/`](examples).
 
 ## Command line
 
 ```sh
-cargo install --git https://github.com/hypnagonia/eigentrust-rust eigentrust-cli
+cargo install eigentrust-cli
 eigentrust localtrust.csv pretrust.csv [alpha]
 ```
 
