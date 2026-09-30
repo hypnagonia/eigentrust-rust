@@ -1,7 +1,8 @@
-<h1 align="center">EigenTrust</h1>
+<h1 align="center">EigenTrust in Rust and WebAssembly</h1>
 
 <p align="center">
-  Global trust scores from local trust. Fast, in Rust and WebAssembly.
+  A fast implementation of the EigenTrust reputation algorithm.<br>
+  Global trust scores for peer-to-peer networks, social graphs and web-of-trust systems, with Sybil attack resistance built in.
 </p>
 
 <p align="center">
@@ -12,24 +13,31 @@
 </p>
 
 <p align="center">
-  <a href="https://eigentrust.jenyadoesapps.com"><img alt="EigenTrust playground" src="docs/playground.png" width="820"></a>
+  <a href="https://eigentrust.jenyadoesapps.com"><img alt="EigenTrust playground: an interactive trust graph ranked live in the browser with WebAssembly" src="docs/playground.png" width="820"></a>
 </p>
 
-## What it does
+## What is EigenTrust?
 
-- **Input:** who trusts whom (`alice,bob,3`), plus a few seed peers you already trust.
-- **Output:** a score for every peer. The scores add up to 1.
-- **Why:** trust spreads from the seeds, so fake accounts that only vouch for each other get almost nothing.
+EigenTrust turns local trust ("alice trusts bob") into a global reputation score for every peer. Trust spreads from a few seed peers you already trust, so fake accounts that only vouch for each other get almost nothing.
 
-Based on the [EigenTrust paper](https://nlp.stanford.edu/pubs/eigentrust.pdf) (Kamvar et al., 2003).
+- **Input:** who trusts whom (`alice,bob,3`), plus seed peers.
+- **Output:** a trust score for every peer. The scores add up to 1.
+- **Algorithm:** power iteration on a sparse trust matrix, as in the [EigenTrust paper](https://nlp.stanford.edu/pubs/eigentrust.pdf) (Kamvar, Schlosser, Garcia-Molina, 2003). With no seeds it behaves like PageRank.
 
-## Try it
+## Use cases
 
-**[eigentrust.jenyadoesapps.com](https://eigentrust.jenyadoesapps.com)**: edit a network, move the α slider, see the ranking update. You can also rank 250,000 peers in the browser.
+- Reputation systems for peer-to-peer and decentralized networks
+- Sybil and spam resistance in social graphs and communities
+- Ranking accounts, contributors or nodes by who vouches for them
+- Web of trust and endorsement graphs
 
-Available in English, Español, 中文, हिन्दी, العربية, Português, Français, Deutsch, Русский and 日本語. The language follows your browser; you can change it in the header or with `?lang=`.
+## Live demo
 
-## Command line
+**[eigentrust.jenyadoesapps.com](https://eigentrust.jenyadoesapps.com)**: build a trust network, move the α slider and watch the ranking update. You can also rank 250,000 peers in the browser.
+
+Available in English, Español, 中文, हिन्दी, العربية, Português, Français, Deutsch, Русский and 日本語.
+
+## Quick start (CLI)
 
 ```sh
 cargo run --release -- ./example/localtrust.csv ./example/pretrust.csv [alpha]
@@ -42,7 +50,7 @@ bob,0.3333333134651184
 
 α defaults to `0.5`. A higher α keeps trust closer to the seeds.
 
-## Browser
+## Use in the browser (WebAssembly)
 
 ```js
 import init, { run } from './pkg/eigentrust.js'
@@ -60,15 +68,14 @@ Build with `./build.sh`. For a ready-made Web Worker, see [`demo/worker.js`](dem
 | File | Line | Example |
 | --- | --- | --- |
 | Local trust | `from,to[,weight]` | `alice,bob,2` |
-| Seeds | `peer[,weight]` | `alice,1` |
+| Seeds (pre-trust) | `peer[,weight]` | `alice,1` |
 
 - A header row is optional. Spaces, quoted fields, CRLF and a UTF-8 BOM are fine.
 - Weights default to 1. Repeated `from,to` pairs: the last line wins.
-- With no seeds, every peer starts equal (like PageRank).
 
 ## Performance
 
-Random networks, 10 links per peer, CSV parsing included.
+Random trust graphs, 10 links per peer, CSV parsing included.
 
 | Peers | Links | CLI | Browser |
 | ---: | ---: | ---: | ---: |
@@ -76,13 +83,13 @@ Random networks, 10 links per peer, CSV parsing included.
 | 100,000 | 1,000,000 | 0.4 s | 0.2 s |
 | 250,000 | 2,500,000 | | 0.6 s |
 
-The browser build uses all CPU cores when the page is cross-origin isolated (see [`demo/vercel.json`](demo/vercel.json)).
+The browser build is multithreaded when the page is cross-origin isolated (see [`demo/vercel.json`](demo/vercel.json)).
 
 ## Development
 
 ```sh
-cargo test --release              # tests
-./build.sh                        # WASM builds, copied into demo/
-python3 -m http.server -d demo    # run the playground locally
+cargo test --release                  # tests
+./build.sh                            # WASM builds, copied into demo/
+python3 -m http.server -d demo        # run the playground locally
 git config core.hooksPath .githooks   # once per clone
 ```

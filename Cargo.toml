@@ -3,7 +3,11 @@ name = "eigentrust"
 version = "0.1.0"
 edition = "2021"
 authors = ["Jenya <hypnagonia@gmail.com>"]
-description = "Rust and WASM Eigentrust implementation"
+description = "Fast EigenTrust reputation algorithm: global trust scores for peer-to-peer networks and social graphs, native and WebAssembly"
+homepage = "https://eigentrust.jenyadoesapps.com"
+readme = "README.md"
+keywords = ["eigentrust", "reputation", "trust", "sybil", "wasm"]
+categories = ["algorithms", "wasm", "science"]
 repository = "https://github.com/hypnagonia/eigentrust-rust"
 
 [features]
