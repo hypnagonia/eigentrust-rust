@@ -142,3 +142,10 @@ db*
 output
 
 
+
+# wasm-pack output, copied into the demo by build.sh
+pkg/
+pkg-parallel/
+demo/pkg/
+demo/pkg-parallel/
+.vercel

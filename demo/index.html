@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>EigenTrust playground</title>
+    <meta name="description" content="Build a trust network and watch EigenTrust rank every peer, live in your browser. Rust compiled to WebAssembly.">
+    <meta property="og:title" content="EigenTrust playground">
+    <meta property="og:description" content="Build a trust network and watch EigenTrust rank every peer, live in your browser.">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='9' cy='22' r='5' fill='%23d99a1e'/%3E%3Ccircle cx='23' cy='10' r='7' fill='%233a3fd0'/%3E%3Cpath d='M12 19 L18 13' stroke='%233a3fd0' stroke-width='2.5'/%3E%3C/svg%3E">
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" crossorigin href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+    <a class="brand" href="./" aria-label="EigenTrust playground home">
+        <svg viewBox="0 0 32 32" width="22" height="22" aria-hidden="true"><circle cx="9" cy="22" r="5" class="brand-seed"/><circle cx="23" cy="10" r="7" class="brand-trust"/><path d="M12 19 L18 13" class="brand-edge"/></svg>
+        EigenTrust
+    </a>
+    <nav class="links">
+        <a href="https://github.com/hypnagonia/eigentrust-rust">Source</a>
+        <a href="https://nlp.stanford.edu/pubs/eigentrust.pdf">Paper</a>
+    </nav>
+</header>
+
+<main class="app">
+    <section class="stage" aria-label="Trust network">
+        <div class="intro">
+            <h1>Trust flows from the peers you already trust.</h1>
+            <p>Click a peer, then click another to add trust between them. Double-click a peer to make it a seed. Bigger circles hold more trust.</p>
+        </div>
+        <canvas id="graph" aria-label="Trust network graph. Use the panel to edit it with a keyboard."></canvas>
+        <div class="stage-note" id="stageNote" hidden></div>
+        <div class="stage-tools">
+            <button type="button" id="addPeer">Add peer</button>
+            <button type="button" id="relayout">Tidy layout</button>
+            <button type="button" id="share">Copy link</button>
+        </div>
+        <div class="legend" aria-hidden="true">
+            <span><i class="dot seed"></i>Seed peer</span>
+            <span><i class="dot trust"></i>Trust score</span>
+            <span><i class="line"></i>Trust given</span>
+        </div>
+    </section>
+
+    <aside class="panel">
+        <div class="tabs" role="tablist">
+            <button role="tab" id="tab-network" aria-selected="true" aria-controls="view-network">Network</button>
+            <button role="tab" id="tab-csv" aria-selected="false" aria-controls="view-csv">CSV</button>
+            <button role="tab" id="tab-bench" aria-selected="false" aria-controls="view-bench">Benchmark</button>
+        </div>
+
+        <div class="view" id="view-network" role="tabpanel" aria-labelledby="tab-network">
+            <div class="field">
+                <label for="preset">Start from</label>
+                <select id="preset">
+                    <option value="friends">A small community</option>
+                    <option value="sybil">A Sybil attack</option>
+                    <option value="chain">A chain of referrals</option>
+                    <option value="empty">An empty network</option>
+                </select>
+            </div>
+
+            <div class="field">
+                <div class="field-row">
+                    <label for="alpha">Seed weight <span class="alpha-sym">α</span></label>
+                    <output id="alphaOut" for="alpha">0.50</output>
+                </div>
+                <input type="range" id="alpha" min="0" max="1" step="0.01" value="0.5">
+                <p class="hint">How strongly every step pulls trust back to the seeds. Higher keeps trust close to them and starves Sybil clusters. Lower lets it travel further.</p>
+            </div>
+
+            <div id="selected" class="selected" hidden></div>
+
+            <div class="ranking-head">
+                <h2>Ranking</h2>
+                <span id="stats" class="stats"></span>
+            </div>
+            <ol id="ranking" class="ranking"></ol>
+        </div>
+
+        <div class="view" id="view-csv" role="tabpanel" aria-labelledby="tab-csv" hidden>
+            <p class="hint">One trust statement per line: <code>from,to,weight</code>. Seeds are <code>peer,weight</code>. Headers, quotes and spaces are fine.</p>
+            <div class="field">
+                <div class="field-row">
+                    <label for="ltText">Local trust</label>
+                    <label class="file">Upload<input type="file" id="ltFile" accept=".csv,.txt"></label>
+                </div>
+                <textarea id="ltText" spellcheck="false" rows="10"></textarea>
+            </div>
+            <div class="field">
+                <div class="field-row">
+                    <label for="ptText">Seeds (pre-trust)</label>
+                    <label class="file">Upload<input type="file" id="ptFile" accept=".csv,.txt"></label>
+                </div>
+                <textarea id="ptText" spellcheck="false" rows="4"></textarea>
+            </div>
+            <div class="actions">
+                <button type="button" class="primary" id="csvLoad">Load into network</button>
+                <button type="button" id="csvDownload">Download scores</button>
+            </div>
+            <p class="error" id="csvError" role="alert" hidden></p>
+        </div>
+
+        <div class="view" id="view-bench" role="tabpanel" aria-labelledby="tab-bench" hidden>
+            <p class="hint">Generate a random network in the browser and rank it. Nothing leaves your machine.</p>
+            <div class="field">
+                <label for="benchPeers">Peers</label>
+                <select id="benchPeers">
+                    <option value="1000">1,000</option>
+                    <option value="10000">10,000</option>
+                    <option value="100000" selected>100,000</option>
+                    <option value="250000">250,000</option>
+                </select>
+            </div>
+            <div class="field">
+                <label for="benchDegree">Trust statements per peer</label>
+                <select id="benchDegree">
+                    <option value="5">5</option>
+                    <option value="10" selected>10</option>
+                    <option value="25">25</option>
+                </select>
+            </div>
+            <div class="actions">
+                <button type="button" class="primary" id="benchRun">Generate and rank</button>
+            </div>
+            <div id="benchOut" class="bench-out" aria-live="polite"></div>
+        </div>
+
+        <footer class="engine" id="engine">Loading WebAssembly</footer>
+    </aside>
+</main>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
