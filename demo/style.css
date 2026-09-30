@@ -84,7 +84,10 @@ button, select, input, textarea { font: inherit; color: inherit; }
 .brand-trust { fill: var(--trust); }
 .brand-edge { stroke: var(--trust); stroke-width: 2.5; }
 
-.links { display: flex; gap: 20px; }
+.links { display: flex; align-items: center; gap: 20px; }
+.profiles { display: flex; align-items: center; gap: 14px; padding-left: 20px; border-left: 1px solid var(--line); }
+.icon-link { display: inline-flex; padding: 2px; }
+.icon-link svg { display: block; }
 .links a { color: var(--muted); text-decoration: none; }
 .links a:hover { color: var(--ink); }
 
