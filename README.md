@@ -27,7 +27,16 @@ It is the algorithm from the [EigenTrust paper](https://nlp.stanford.edu/pubs/ei
 
 **Try it: [eigentrust.jenyadoesapps.com](https://eigentrust.jenyadoesapps.com)**, a live playground in 10 languages that can also rank 250,000 peers in the browser.
 
+Published on crates.io:
+
+| Crate | What you get | Links |
+| --- | --- | --- |
+| [`eigentrust`](https://crates.io/crates/eigentrust) | the Rust library | [docs.rs](https://docs.rs/eigentrust) |
+| [`eigentrust-cli`](https://crates.io/crates/eigentrust-cli) | the `eigentrust` command | [install](#command-line) |
+
 ## Rust library
+
+The [`eigentrust`](https://crates.io/crates/eigentrust) crate on crates.io:
 
 ```toml
 [dependencies]
@@ -65,6 +74,8 @@ fn main() -> Result<(), eigentrust::EigenTrustError> {
 The [documentation on docs.rs](https://docs.rs/eigentrust) covers the exact input rules and convergence behavior. See also [`examples/`](examples).
 
 ## Command line
+
+The [`eigentrust-cli`](https://crates.io/crates/eigentrust-cli) crate on crates.io:
 
 ```sh
 cargo install eigentrust-cli
