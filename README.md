@@ -10,6 +10,7 @@
   <a href="https://eigentrust.jenyadoesapps.com"><img alt="Live demo" src="https://img.shields.io/badge/demo-live-3a3fd0"></a>
   <img alt="Rust" src="https://img.shields.io/badge/Rust-2021-b7410e?logo=rust&logoColor=white">
   <img alt="WebAssembly" src="https://img.shields.io/badge/WebAssembly-multithreaded-654ff0?logo=webassembly&logoColor=white">
+  <a href="#license"><img alt="License: MIT OR Apache-2.0" src="https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue"></a>
 </p>
 
 <p align="center">
@@ -70,8 +71,11 @@ Build with `./build.sh`. For a ready-made Web Worker, see [`demo/worker.js`](dem
 | Local trust | `from,to[,weight]` | `alice,bob,2` |
 | Seeds (pre-trust) | `peer[,weight]` | `alice,1` |
 
-- A header row is optional. Spaces, quoted fields, CRLF and a UTF-8 BOM are fine.
-- Weights default to 1. Repeated `from,to` pairs: the last line wins.
+- Standard CSV: quoted fields (`"Smith, J"`), a header row, spaces, CRLF and a UTF-8 BOM are fine.
+- Weights default to 1 and must be finite and non-negative. Negative trust (distrust) is not supported yet.
+- A repeated `from,to` pair or seed peer: the last line wins.
+- α must be in [0, 1]. At α = 0 some networks oscillate instead of converging; the engine stops after 10,000 iterations with an error.
+- Errors name the file and line, e.g. `local trust CSV, line 5: weight "NaN" must be finite`.
 
 ## Performance
 
@@ -93,3 +97,7 @@ cargo test --release                  # tests
 python3 -m http.server -d demo        # run the playground locally
 git config core.hooksPath .githooks   # once per clone
 ```
+
+## License
+
+Licensed under either of [Apache License 2.0](LICENSE-APACHE) or [MIT](LICENSE-MIT), at your option.
