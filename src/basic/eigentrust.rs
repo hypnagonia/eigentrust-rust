@@ -1,3 +1,4 @@
+use crate::error::{Error, Result};
 use crate::sparse::entry::Entry;
 #[cfg(test)]
 use crate::sparse::matrix::CSMatrix;
@@ -6,64 +7,8 @@ use crate::sparse::util::KBNSummer;
 use crate::sparse::vector::Vector;
 use std::cmp;
 
-// Canonicalize scales sparse entries in-place so that their values sum to one.
-// If entries sum to zero, Canonicalize returns an error indicating a zero-sum vector.
-pub fn canonicalize(entries: &mut [Entry]) -> Result<(), String> {
-    let sum: f64 = entries.iter().map(|entry| entry.value).sum();
-    if sum == 0.0 {
-        return Err("Zero sum vector".to_string());
-    }
-    for entry in entries.iter_mut() {
-        entry.value /= sum;
-    }
-    Ok(())
-}
-
-pub struct ConvergenceChecker {
-    iter: usize,
-    t: Vector,
-    d: f64,
-    e: f64,
-}
-
-impl ConvergenceChecker {
-    pub fn new(t0: &Vector, e: f64) -> ConvergenceChecker {
-        ConvergenceChecker {
-            iter: 0,
-            t: t0.clone(),
-            d: 2.0 * e, // initial sentinel
-            e,
-        }
-    }
-
-    pub fn update(&mut self, t: &Vector) -> Result<(), String> {
-        let mut td = Vector::new(self.t.dim, vec![]);
-        td.sub_vec(t, &self.t)?;
-
-        let d = td.norm2();
-
-        log::debug!(
-            "one iteration={} log10dPace={} log10dRemaining={}",
-            self.iter,
-            (d / self.d).log10(),
-            (d / self.e).log10()
-        );
-
-        self.t.assign(t);
-        self.d = d;
-        self.iter += 1;
-        Ok(())
-    }
-
-    pub fn converged(&self) -> bool {
-        self.d <= self.e
-    }
-
-    pub fn delta(&self) -> f64 {
-        self.d
-    }
-}
-
+// Stops the iteration only once the ranking of the top `num_leaders` peers has stayed
+// the same for `length` checks. compute() uses length 0, which disables it.
 pub struct FlatTailChecker {
     length: usize,
     num_leaders: usize,
@@ -91,7 +36,12 @@ impl FlatTailChecker {
                 .partial_cmp(&a.value)
                 .unwrap_or(cmp::Ordering::Equal)
         });
-        let ranking: Vec<usize> = entries.iter().map(|entry| entry.index).collect();
+        // only the top num_leaders positions have to stay stable
+        let ranking: Vec<usize> = entries
+            .iter()
+            .take(self.num_leaders)
+            .map(|entry| entry.index)
+            .collect();
 
         if ranking == self.stats.ranking {
             self.stats.length += 1;
@@ -117,12 +67,15 @@ pub struct FlatTailStats {
     pub ranking: Vec<usize>,
 }
 
+// Upper bound on power iterations when the caller does not set one. With alpha > 0
+// the error shrinks by (1 - alpha) per step; alpha = 0 on a periodic graph never converges.
+pub const DEFAULT_MAX_ITERATIONS: usize = 10_000;
+
 // Compute function implements the EigenTrust algorithm.
 //
 // The iteration runs on dense vectors: after a couple of iterations the trust
 // vector is (almost) dense anyway, and a dense lookup turns every row dot
 // product into O(nnz(row)) instead of a sparse-sparse merge walk.
-// todo Error instead of String
 pub fn compute(
     c: &CSRMatrix,
     p: &Vector,
@@ -130,18 +83,18 @@ pub fn compute(
     e: f64,
     max_iterations: Option<usize>,
     min_iterations: Option<usize>,
-) -> Result<Vector, String> {
-    if a.is_nan() {
-        return Err("Error: alpha cannot be NaN".to_string());
+) -> Result<Vector> {
+    if !(0.0..=1.0).contains(&a) {
+        return Err(Error::InvalidAlpha(a));
     }
 
     let n = c.cs_matrix.major_dim;
     if n == 0 {
-        return Err("Empty local trust matrix".to_string());
+        return Err(Error::EmptyLocalTrust);
     }
 
     if p.dim != n {
-        return Err("Dimension mismatch".to_string());
+        return Err(Error::DimensionMismatch);
     }
 
     let ct = c.transpose()?;
@@ -156,7 +109,7 @@ pub fn compute(
     let mut flat_tail_checker = FlatTailChecker::new(flat_tail, n);
 
     let mut iter = 0;
-    let max_iters = max_iterations.unwrap_or(usize::MAX);
+    let max_iters = max_iterations.unwrap_or(DEFAULT_MAX_ITERATIONS);
     let min_iters = min_iterations.unwrap_or(1);
 
     log::info!(
@@ -170,6 +123,9 @@ pub fn compute(
     while iter < max_iters {
         if iter >= min_iters {
             let d = dense_delta_norm2(&t1, &prev);
+            if !d.is_finite() {
+                return Err(Error::NonFiniteScores);
+            }
             prev.copy_from_slice(&t1);
             log::trace!("iteration={} delta={}", iter, d);
 
@@ -195,7 +151,10 @@ pub fn compute(
     }
 
     if iter >= max_iters {
-        return Err("Reached maximum iterations without convergence".to_string());
+        return Err(Error::NotConverged {
+            iterations: max_iters,
+            alpha: a,
+        });
     }
 
     log::info!(
@@ -253,7 +212,9 @@ fn mul_dense(m: &CSRMatrix, v: &[f64], out: &mut [f64]) {
 
 // Subtracts from t each peer's trust-weighted distrust row:
 // t -= sum_i t[i] * discounts[i], applied in distruster order.
-pub fn discount_trust_vector(t: &mut Vector, discounts: &CSRMatrix) -> Result<(), String> {
+// Subtracts each peer's trust-weighted distrust row. Not used by calculate_from_csv, see
+// extract_distrust.
+pub fn discount_trust_vector(t: &mut Vector, discounts: &CSRMatrix) -> Result<()> {
     if discounts.cs_matrix.entries.iter().all(|row| row.is_empty()) {
         return Ok(());
     }
@@ -268,7 +229,7 @@ pub fn discount_trust_vector(t: &mut Vector, discounts: &CSRMatrix) -> Result<()
         };
         for entry in distrusts {
             if entry.index >= result.len() {
-                return Err("Dimension mismatch".to_string());
+                return Err(Error::DimensionMismatch);
             }
             let scaled = weight * entry.value;
             if scaled != 0.0 {
@@ -615,5 +576,25 @@ mod tests {
         };
         let result = compute(&c, &p, a, e, None, None).unwrap();
         assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_alpha_zero_on_periodic_graph_stops() {
+        // a <-> b with all seed trust on a oscillates forever without teleport
+        let c = CSRMatrix::new(2, 2, vec![(0, 1, 1.0), (1, 0, 1.0)]);
+        let p = Vector::new(2, vec![Entry::new(0, 1.0)]);
+        let err = compute(&c, &p, 0.0, 1e-9, None, None).unwrap_err();
+        assert!(matches!(err, Error::NotConverged { .. }), "{}", err);
+        // with teleport it converges
+        assert!(compute(&c, &p, 0.1, 1e-9, None, None).is_ok());
+    }
+
+    #[test]
+    fn test_compute_rejects_bad_alpha() {
+        let c = CSRMatrix::new(1, 1, vec![(0, 0, 1.0)]);
+        let p = Vector::new(1, vec![Entry::new(0, 1.0)]);
+        for a in [f64::NAN, -0.1, 1.5] {
+            assert!(compute(&c, &p, a, 1e-9, None, None).is_err());
+        }
     }
 }

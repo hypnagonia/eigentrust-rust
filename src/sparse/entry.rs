@@ -88,7 +88,7 @@ mod tests {
             ("Empty", vec![], 0),
         ];
 
-        for (name, mut entries, expected_len) in tests {
+        for (name, entries, expected_len) in tests {
             let len = entries.len();
             assert_eq!(
                 len, expected_len,
@@ -179,7 +179,7 @@ mod tests {
         ];
 
         for (name, x, y, expected) in tests {
-            let entries = vec![x.clone(), y.clone()];
+            let entries = [x.clone(), y.clone()];
             let result = entries[0].row < entries[1].row
                 || (entries[0].row == entries[1].row && entries[0].column < entries[1].column);
             assert_eq!(
@@ -206,7 +206,7 @@ mod tests {
             ("Empty", vec![], 0),
         ];
 
-        for (name, mut entries, expected_len) in tests {
+        for (name, entries, expected_len) in tests {
             let len = entries.len();
             assert_eq!(
                 len, expected_len,
@@ -297,7 +297,7 @@ mod tests {
         ];
 
         for (name, x, y, expected) in tests {
-            let entries = vec![x.clone(), y.clone()];
+            let entries = [x.clone(), y.clone()];
             let result = entries[0].column < entries[1].column
                 || (entries[0].column == entries[1].column && entries[0].row < entries[1].row);
             assert_eq!(

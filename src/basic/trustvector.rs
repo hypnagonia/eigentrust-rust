@@ -1,13 +1,14 @@
-use super::util::clean_field;
+use super::input::{for_each_record, parse_weight};
+use crate::error::{Error, Input, RecordError, Result};
 use crate::sparse::entry::Entry;
 use crate::sparse::vector::Vector;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 // CanonicalizeTrustVector canonicalizes the trust vector in-place,
 // scaling it so that the elements sum to one,
 // or making it a uniform vector that sums to one if it's a zero vector.
 pub fn canonicalize_trust_vector(v: &mut Vector) {
-    if canonicalize(&mut v.entries).is_err() {
+    if !canonicalize(&mut v.entries) {
         let dim = v.dim;
         let c = 1.0 / dim as f64;
         v.entries.clear();
@@ -17,117 +18,95 @@ pub fn canonicalize_trust_vector(v: &mut Vector) {
     }
 }
 
-// Helper function to canonicalize a vector in-place.
-// Returns an error if the vector is a zero vector.
-fn canonicalize(entries: &mut Vec<Entry>) -> Result<(), &'static str> {
+// Scales entries in place to sum to one. Returns false for a zero vector.
+fn canonicalize(entries: &mut [Entry]) -> bool {
     let sum: f64 = entries.iter().map(|entry| entry.value).sum();
-
     if sum == 0.0 {
-        return Err("Zero sum vector");
+        return false;
     }
-
     for entry in entries.iter_mut() {
         entry.value /= sum;
     }
-
-    Ok(())
+    true
 }
 
-enum DuplicateHandling {
-    Allow,
-    Remove,
-    Fail,
-}
-
-// todo move csv logic out of this scope
+// Reads `peer[,weight]` records. Weights must be finite and non-negative, default 1.
+// A peer listed more than once keeps its last weight, same as local trust.
 pub fn read_trust_vector_from_csv(
     input: &str,
     peer_indices: &HashMap<String, usize>,
-) -> Result<Vector, String> {
-    let mut count = 0;
+) -> Result<Vector> {
+    let mut levels: HashMap<usize, f64> = HashMap::new();
     let mut max_peer = -1;
-    let mut entries = Vec::new();
-    let mut seen_peers = HashSet::new();
-    let duplicate_handling = DuplicateHandling::Allow;
-    let mut dublicate_count = 0;
+    let mut duplicate_count = 0;
 
-    for line in input.lines() {
-        count += 1;
-        if line.trim().is_empty() {
-            continue;
-        }
-        let fields: Vec<&str> = line.split(',').map(clean_field).collect();
-
-        let (peer, level) = match fields.len() {
-            0 => return Err(format!("Too few fields in line {}", count)),
-            _ => {
-                let peer = parse_peer_id(fields[0], peer_indices).map_err(|e| {
-                    format!("Invalid peer {:?} in line {}: {}", fields[0], count, e)
-                })?;
-                let level = if fields.len() >= 2 {
-                    parse_trust_level(fields[1]).map_err(|e| {
-                        format!(
-                            "Invalid trust level {:?} in line {}: {}",
-                            fields[1], count, e
-                        )
-                    })?
-                } else {
-                    1.0
-                };
-                (peer, level)
-            }
+    for_each_record(input, Input::PreTrust, 1, |line, fields| {
+        let record_error = |error| Error::Record {
+            input: Input::PreTrust,
+            line,
+            error,
         };
+        let peer = *peer_indices
+            .get(fields[0])
+            .ok_or_else(|| record_error(RecordError::UnknownPeer(fields[0].to_string())))?;
+        let level = parse_weight(fields.get(1)).map_err(record_error)?;
 
-        if seen_peers.contains(&peer) {
-            match duplicate_handling {
-                DuplicateHandling::Fail => {
-                    return Err(format!("Duplicate peer {:?} in line {}", fields[0], count));
-                }
-                DuplicateHandling::Remove => {
-                    dublicate_count += 1;
-                    continue;
-                }
-                DuplicateHandling::Allow => {
-                    dublicate_count += 1;
-                }
-            }
-        } else {
-            seen_peers.insert(peer);
+        if levels.insert(peer, level).is_some() {
+            duplicate_count += 1;
         }
+        max_peer = max_peer.max(peer as isize);
+        Ok(())
+    })?;
 
-        if max_peer < peer as isize {
-            max_peer = peer as isize;
-        }
-
-        entries.push(Entry {
-            index: peer,
-            value: level,
-        });
+    if duplicate_count > 0 {
+        log::warn!(
+            "Pretrust contains {} duplicate peers, the last value wins",
+            duplicate_count
+        );
     }
 
-    if dublicate_count > 0 {
-        log::warn!("Pretrust contains {} duplicate peers", dublicate_count);
-    }
-
+    let entries = levels
+        .into_iter()
+        .map(|(index, value)| Entry { index, value })
+        .collect();
     Ok(Vector::new((max_peer + 1) as usize, entries))
-}
-
-fn parse_peer_id(peer_str: &str, peer_indices: &HashMap<String, usize>) -> Result<usize, String> {
-    peer_indices
-        .get(peer_str)
-        .cloned()
-        .ok_or_else(|| format!("Invalid peer: {}", peer_str))
-}
-
-fn parse_trust_level(level_str: &str) -> Result<f64, String> {
-    level_str
-        .parse::<f64>()
-        .map_err(|_| format!("Invalid trust level: {}", level_str))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn peers(names: &[&str]) -> HashMap<String, usize> {
+        names
+            .iter()
+            .enumerate()
+            .map(|(i, n)| (n.to_string(), i))
+            .collect()
+    }
+
+    #[test]
+    fn test_duplicate_pretrust_last_wins() {
+        let v = read_trust_vector_from_csv("a,1\nb,1\na,3", &peers(&["a", "b"])).unwrap();
+        assert_eq!(v.entries, vec![Entry::new(0, 3.0), Entry::new(1, 1.0)]);
+    }
+
+    #[test]
+    fn test_pretrust_rejects_non_finite_and_negative() {
+        // a bad first line reads as a header, so each bad line follows a valid one
+        for bad in [
+            "a,1\na,NaN",
+            "a,1\na,inf",
+            "a,1\na,-1",
+            "a,1\na,x",
+            "a,1\nb,1",
+        ] {
+            assert!(
+                read_trust_vector_from_csv(bad, &peers(&["a"])).is_err(),
+                "{}",
+                bad
+            );
+        }
+    }
 
     #[test]
     fn test_canonicalize_zero_vector_is_uniform_over_dim() {

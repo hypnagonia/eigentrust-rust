@@ -1,113 +1,97 @@
-use super::util::{clean_field, PeersMap};
+use super::input::{for_each_record, parse_weight};
+use super::util::PeersMap;
+use crate::error::{Error, Input, RecordError, Result};
 use crate::sparse::entry::Entry;
 use crate::sparse::matrix::CSRMatrix;
 use crate::sparse::vector::Vector;
 
+// Scales every row to sum to one. Rows without trust (dangling peers) get the pre-trust
+// distribution, so their share flows back to the seeds.
 pub fn canonicalize_local_trust(
     local_trust: &mut CSRMatrix,
-    pre_trust: Option<Vector>,
-) -> Result<(), String> {
+    pre_trust: Option<&Vector>,
+) -> Result<()> {
     let n = local_trust.dims().0;
 
-    if let Some(ref pre_trust_vec) = pre_trust {
-        // if pre_trust_vec.entries.len() != n {
-        if pre_trust_vec.entries.len() > n {
-            return Err("Dimension mismatch".to_string());
+    if let Some(pre_trust) = pre_trust {
+        if pre_trust.entries.len() > n {
+            return Err(Error::DimensionMismatch);
         }
     }
 
-    for i in 0..n {
-        let mut in_row = local_trust.row_vector(i);
-        let row_sum: f64 = in_row.entries.iter().map(|entry| entry.value).sum();
-
+    for row in local_trust.cs_matrix.entries.iter_mut() {
+        let row_sum: f64 = row.iter().map(|entry| entry.value).sum();
         if row_sum == 0.0 {
-            if let Some(ref pre_trust_vec) = pre_trust {
-                local_trust.set_row_vector(i, Vector::new(n, pre_trust_vec.entries.clone()));
+            if let Some(pre_trust) = pre_trust {
+                row.clone_from(&pre_trust.entries);
             }
         } else {
-            for entry in &mut in_row.entries {
+            for entry in row.iter_mut() {
                 entry.value /= row_sum;
             }
-            local_trust.set_row_vector(i, in_row);
         }
     }
 
     Ok(())
 }
 
-pub fn extract_distrust(local_trust: &mut CSRMatrix) -> Result<CSRMatrix, String> {
+// Splits negative entries off into a separate distrust matrix (as positive values).
+// Not used by calculate_from_csv: negative weights are rejected while parsing until the
+// effect of distrust on the scores is defined.
+pub fn extract_distrust(local_trust: &mut CSRMatrix) -> CSRMatrix {
     let n = local_trust.dims().0;
     let mut distrust = CSRMatrix::new(n, n, vec![]);
 
-    for truster in 0..n {
-        let mut trust_row = local_trust.row_vector(truster);
+    for (truster, row) in local_trust.cs_matrix.entries.iter_mut().enumerate() {
         let mut distrust_row = Vec::new();
-
-        trust_row.entries.retain(|entry| {
+        row.retain(|entry| {
             if entry.value >= 0.0 {
                 true
             } else {
-                distrust_row.push(Entry {
-                    index: entry.index,
-                    value: -entry.value,
-                });
+                distrust_row.push(Entry::new(entry.index, -entry.value));
                 false
             }
         });
-
-        local_trust.set_row_vector(truster, trust_row);
         distrust.set_row_vector(truster, Vector::new(n, distrust_row));
     }
 
-    Ok(distrust)
+    distrust
 }
 
-fn parse_csv_line(line: &str, peer_indices: &mut PeersMap) -> Result<(usize, usize, f64), String> {
-    let mut fields = line.split(',').map(clean_field);
-
-    let (from, to) = match (fields.next(), fields.next()) {
-        (Some(from), Some(to)) => (from, to),
-        _ => return Err("Too few fields".to_string()),
-    };
-    let from = peer_indices.insert_or_get(from);
-    let to = peer_indices.insert_or_get(to);
-    let level = match fields.next() {
-        Some(level) => level.parse::<f64>().map_err(|_| "Invalid trust level")?,
-        None => 1.0,
-    };
-    Ok((from, to, level))
-}
-
-// todo move csv logic out of this scope, cooentry
-pub fn read_local_trust_from_csv(csv_data: &str) -> Result<(CSRMatrix, PeersMap), String> {
+// Reads `from,to[,weight]` records into a square CSR matrix, one row per truster.
+// Peers get indices in order of first appearance. A repeated `from,to` pair keeps the
+// last weight.
+pub fn read_local_trust_from_csv(csv_data: &str) -> Result<(CSRMatrix, PeersMap)> {
     // rows are filled directly while parsing; the matrix grows as new peers appear
     let mut rows: Vec<Vec<Entry>> = Vec::new();
-    let mut peer_indices = PeersMap::new();
+    let mut peers = PeersMap::new();
 
-    for (count, line) in csv_data.lines().enumerate() {
-        if line.trim().is_empty() {
-            continue;
-        }
-        let (from, to, level) = parse_csv_line(line, &mut peer_indices).map_err(|e| {
-            format!(
-                "Cannot parse local trust CSV record #{}: {:?} {:?}",
-                count + 1,
-                e,
-                line
-            )
-        })?;
+    for_each_record(csv_data, Input::LocalTrust, 2, |line, fields| {
+        let record_error = |error| Error::Record {
+            input: Input::LocalTrust,
+            line,
+            error,
+        };
+        let (from, to) = match fields {
+            [from, to, ..] => (*from, *to),
+            _ => return Err(record_error(RecordError::TooFewFields)),
+        };
+        let level = parse_weight(fields.get(2)).map_err(record_error)?;
+        let from = peers.insert_or_get(from);
+        let to = peers.insert_or_get(to);
         if from >= rows.len() {
             rows.resize_with(from + 1, Vec::new);
         }
         rows[from].push(Entry::new(to, level));
-    }
+        Ok(())
+    })?;
 
-    let dim = peer_indices.names.len();
+    let dim = peers.names.len();
     if dim == 0 {
-        return Err("Local trust is empty".to_string());
+        return Err(Error::EmptyLocalTrust);
     }
     rows.resize_with(dim, Vec::new);
-    Ok((CSRMatrix::from_rows(dim, rows), peer_indices))
+    Ok((CSRMatrix::from_rows(dim, rows), peers))
 }
 
 #[cfg(test)]
@@ -140,7 +124,7 @@ mod tests {
 
         for test in test_cases {
             let mut local_trust = test.local_trust.clone();
-            let distrust = extract_distrust(&mut local_trust).expect("Failed to extract distrust");
+            let distrust = extract_distrust(&mut local_trust);
 
             assert_eq!(
                 local_trust, test.expected_trust,
@@ -153,5 +137,13 @@ mod tests {
                 test.name
             );
         }
+    }
+
+    #[test]
+    fn test_local_trust_rejects_bad_levels() {
+        for bad in ["a,b,NaN", "a,b,inf", "a,b,-inf", "a,b,-1", "a,b,x"] {
+            assert!(read_local_trust_from_csv(bad).is_err(), "{}", bad);
+        }
+        assert!(read_local_trust_from_csv("a,b,0\nb,a,2.5").is_ok());
     }
 }
