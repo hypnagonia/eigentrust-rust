@@ -1,9 +1,11 @@
 use std::fmt;
 
-/// Which CSV input an error refers to.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Which input an [`EigenTrustError`] refers to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Input {
+    /// The local trust edges.
     LocalTrust,
+    /// The pre-trust (seed) entries.
     PreTrust,
 }
 
@@ -16,78 +18,103 @@ impl fmt::Display for Input {
     }
 }
 
-/// What is wrong with a single CSV record.
+/// Why [`eigentrust`](crate::eigentrust) could not compute scores.
+///
+/// Input positions are 0-based indices into the iterator that was passed in.
 #[derive(Debug, Clone, PartialEq)]
-pub enum RecordError {
-    /// The CSV itself is malformed, e.g. an unterminated quote.
-    Malformed(String),
-    TooFewFields,
-    InvalidWeight(String),
-    NonFiniteWeight(String),
-    /// Distrust has no defined effect on the scores yet, so it is rejected.
-    NegativeWeight(String),
-    /// A pre-trust peer that never appears in local trust.
-    UnknownPeer(String),
-}
-
-impl fmt::Display for RecordError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            RecordError::Malformed(msg) => write!(f, "malformed CSV: {}", msg),
-            RecordError::TooFewFields => f.write_str("too few fields"),
-            RecordError::InvalidWeight(w) => write!(f, "weight {:?} is not a number", w),
-            RecordError::NonFiniteWeight(w) => write!(f, "weight {:?} must be finite", w),
-            RecordError::NegativeWeight(w) => {
-                write!(f, "weight {:?} is negative; distrust is not supported", w)
-            }
-            RecordError::UnknownPeer(p) => {
-                write!(f, "peer {:?} does not appear in local trust", p)
-            }
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Error {
-    /// A CSV record could not be used. `line` is 1-based.
-    Record {
-        input: Input,
-        line: u64,
-        error: RecordError,
-    },
-    EmptyLocalTrust,
+#[non_exhaustive]
+pub enum EigenTrustError {
+    /// `alpha` is not a finite number in `[0, 1]`.
     InvalidAlpha(f64),
-    DimensionMismatch,
-    /// The iteration produced NaN or infinity.
-    NonFiniteScores,
-    NotConverged {
-        iterations: usize,
-        alpha: f64,
+    /// `epsilon` is not a finite number greater than zero.
+    InvalidEpsilon(f64),
+    /// `max_iterations` is zero.
+    InvalidMaxIterations,
+    /// A weight is NaN or infinite.
+    NonFiniteWeight {
+        /// The input containing the weight.
+        input: Input,
+        /// Position of the item in that input.
+        position: usize,
     },
-    InvalidUtf8(Input),
+    /// A weight is negative. Distrust is not supported.
+    NegativeWeight {
+        /// The input containing the weight.
+        input: Input,
+        /// Position of the item in that input.
+        position: usize,
+        /// The rejected weight.
+        weight: f64,
+    },
+    /// A peer index of `usize::MAX`, which leaves no room to count the peers.
+    InvalidPeer {
+        /// The input containing the index.
+        input: Input,
+        /// Position of the item in that input.
+        position: usize,
+    },
+    /// The weights of one truster, or all of pre-trust, add up to more than `f64::MAX`.
+    WeightOverflow(Input),
+    /// Neither input mentions any peer.
+    EmptyNetwork,
+    /// The scores did not settle within `max_iterations`. With `alpha` near zero some
+    /// networks oscillate instead of converging.
+    NotConverged {
+        /// Iterations performed.
+        iterations: usize,
+        /// Change between the last two iterations (L2 norm).
+        residual: f64,
+    },
 }
 
-impl fmt::Display for Error {
+impl fmt::Display for EigenTrustError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Record { input, line, error } => {
-                write!(f, "{} CSV, line {}: {}", input, line, error)
+            EigenTrustError::InvalidAlpha(a) => write!(f, "alpha must be in [0, 1], got {}", a),
+            EigenTrustError::InvalidEpsilon(e) => {
+                write!(f, "epsilon must be finite and greater than 0, got {}", e)
             }
-            Error::EmptyLocalTrust => f.write_str("local trust is empty"),
-            Error::InvalidAlpha(a) => write!(f, "alpha must be in [0, 1], got {}", a),
-            Error::DimensionMismatch => f.write_str("dimension mismatch"),
-            Error::NonFiniteScores => f.write_str("trust scores are not finite"),
-            Error::NotConverged { iterations, alpha } => write!(
+            EigenTrustError::InvalidMaxIterations => {
+                f.write_str("max_iterations must be at least 1")
+            }
+            EigenTrustError::NonFiniteWeight { input, position } => {
+                write!(f, "{} item {}: weight must be finite", input, position)
+            }
+            EigenTrustError::NegativeWeight {
+                input,
+                position,
+                weight,
+            } => write!(
                 f,
-                "did not converge in {} iterations with alpha {}; \
-                 a small alpha on a periodic trust graph can oscillate, try a larger alpha",
-                iterations, alpha
+                "{} item {}: weight {} is negative; distrust is not supported",
+                input, position, weight
             ),
-            Error::InvalidUtf8(input) => write!(f, "{} CSV is not valid UTF-8", input),
+            EigenTrustError::InvalidPeer { input, position } => {
+                write!(
+                    f,
+                    "{} item {}: peer index usize::MAX is not allowed",
+                    input, position
+                )
+            }
+            EigenTrustError::WeightOverflow(input) => {
+                write!(
+                    f,
+                    "{} weights are too large: their sum overflows f64",
+                    input
+                )
+            }
+            EigenTrustError::EmptyNetwork => f.write_str("the network has no peers"),
+            EigenTrustError::NotConverged {
+                iterations,
+                residual,
+            } => write!(
+                f,
+                "did not converge in {} iterations (residual {:.3e}); \
+                 a small alpha on a periodic trust graph can oscillate, try a larger alpha",
+                iterations, residual
+            ),
         }
     }
 }
 
-impl std::error::Error for Error {}
-
-pub type Result<T> = std::result::Result<T, Error>;
+impl std::error::Error for EigenTrustError {}

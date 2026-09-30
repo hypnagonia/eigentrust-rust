@@ -14,44 +14,69 @@
 </p>
 
 <p align="center">
-  <a href="https://eigentrust.jenyadoesapps.com"><img alt="EigenTrust playground: an interactive trust graph ranked live in the browser with WebAssembly" src="docs/playground.png" width="820"></a>
+  <a href="https://eigentrust.jenyadoesapps.com"><img alt="EigenTrust playground: an interactive trust graph ranked live in the browser with WebAssembly" src="https://raw.githubusercontent.com/hypnagonia/eigentrust-rust/main/docs/playground.png" width="820"></a>
 </p>
 
 ## What is EigenTrust?
 
-EigenTrust turns local trust ("alice trusts bob") into a global reputation score for every peer. Trust spreads from a few seed peers you already trust, so fake accounts that only vouch for each other get almost nothing.
+EigenTrust turns local trust ("alice trusts bob") into a global reputation score for every peer. Trust spreads from a few seed peers you already trust, so fake accounts that only vouch for each other get almost nothing. With no seeds it behaves like PageRank.
 
-- **Input:** who trusts whom (`alice,bob,3`), plus seed peers.
-- **Output:** a trust score for every peer. The scores add up to 1.
-- **Algorithm:** power iteration on a sparse trust matrix, as in the [EigenTrust paper](https://nlp.stanford.edu/pubs/eigentrust.pdf) (Kamvar, Schlosser, Garcia-Molina, 2003). With no seeds it behaves like PageRank.
+It is the algorithm from the [EigenTrust paper](https://nlp.stanford.edu/pubs/eigentrust.pdf) (Kamvar, Schlosser, Garcia-Molina, 2003), used for reputation in peer-to-peer and decentralized networks, Sybil and spam resistance, and ranking accounts or contributors by who vouches for them.
 
-## Use cases
+**Try it: [eigentrust.jenyadoesapps.com](https://eigentrust.jenyadoesapps.com)**, a live playground in 10 languages that can also rank 250,000 peers in the browser.
 
-- Reputation systems for peer-to-peer and decentralized networks
-- Sybil and spam resistance in social graphs and communities
-- Ranking accounts, contributors or nodes by who vouches for them
-- Web of trust and endorsement graphs
+## Rust library
 
-## Live demo
+```toml
+[dependencies]
+eigentrust = { git = "https://github.com/hypnagonia/eigentrust-rust" }
+```
 
-**[eigentrust.jenyadoesapps.com](https://eigentrust.jenyadoesapps.com)**: build a trust network, move the α slider and watch the ranking update. You can also rank 250,000 peers in the browser.
+```rust
+use eigentrust::{eigentrust, PreTrust, TrustEdge};
 
-Available in English, Español, 中文, हिन्दी, العربية, Português, Français, Deutsch, Русский and 日本語.
+fn main() -> Result<(), eigentrust::EigenTrustError> {
+    let local_trust = [
+        TrustEdge::new(0, 1, 2.0), // peer 0 trusts peer 1 with weight 2
+        TrustEdge::new(0, 2, 1.0),
+        TrustEdge::new(1, 2, 1.0),
+        TrustEdge::new(2, 0, 1.0),
+    ];
+    let pre_trust = [PreTrust::new(0, 1.0)]; // peer 0 is the seed
 
-## Quick start (CLI)
+    let result = eigentrust(local_trust, pre_trust)?;
+    for (peer, score) in result.ranking() {
+        println!("{peer}: {score:.4}");
+    }
+    Ok(())
+}
+```
+
+- `eigentrust_with_options` takes `EigenTrustOptions` for `alpha` (default 0.5), the convergence threshold and the iteration limit.
+- Results come back as `TrustScores`: one score per peer, summing to 1, plus the iteration count and residual.
+- Errors are a typed `EigenTrustError`.
+- Optional features:
+  - `csv` adds `eigentrust::csv::Network` for named peers from CSV.
+  - `parallel` runs the iteration on all cores with rayon.
+- There are no required dependencies beyond `log`, and the same code builds for `wasm32`.
+
+The crate documentation (`cargo doc --open`) covers the exact input rules and convergence behavior. See also [`examples/`](examples).
+
+## Command line
 
 ```sh
-cargo run --release -- ./example/localtrust.csv ./example/pretrust.csv [alpha]
+cargo install --git https://github.com/hypnagonia/eigentrust-rust eigentrust-cli
+eigentrust localtrust.csv pretrust.csv [alpha]
 ```
 
-```
+```text
 alice,0.6666666865348816
 bob,0.3333333134651184
 ```
 
-α defaults to `0.5`. A higher α keeps trust closer to the seeds.
+It prints `peer,score` for every peer with a non-zero score, highest first. Errors go to stderr with exit code 1.
 
-## Use in the browser (WebAssembly)
+## Browser (WebAssembly)
 
 ```js
 import init, { run } from './pkg/eigentrust.js'
@@ -62,20 +87,22 @@ const result = JSON.parse(run(enc.encode('alice,bob,2\nbob,carol,1\n'), enc.enco
 // { Ok: [["alice", ...], ["bob", ...], ["carol", ...]] }  or  { Err: "..." }
 ```
 
-Build with `./build.sh`. For a ready-made Web Worker, see [`demo/worker.js`](demo/worker.js).
+- `./build.sh` builds `pkg/` and a multithreaded `pkg-parallel/` from the [`wasm`](wasm) crate.
+- The multithreaded build needs a cross-origin isolated page; see [`demo/vercel.json`](demo/vercel.json).
+- [`demo/worker.js`](demo/worker.js) runs the engine in a Web Worker and picks the right build.
 
-## Input format
+## Input rules
 
-| File | Line | Example |
+| Input | CSV line | Rust type |
 | --- | --- | --- |
-| Local trust | `from,to[,weight]` | `alice,bob,2` |
-| Seeds (pre-trust) | `peer[,weight]` | `alice,1` |
+| Local trust | `from,to[,weight]` | `TrustEdge { from, to, weight }` |
+| Pre-trust (seeds) | `peer[,weight]` | `PreTrust { peer, weight }` |
 
-- Standard CSV: quoted fields (`"Smith, J"`), a header row, spaces, CRLF and a UTF-8 BOM are fine.
-- Weights default to 1 and must be finite and non-negative. Negative trust (distrust) is not supported yet.
-- A repeated `from,to` pair or seed peer: the last line wins.
-- α must be in [0, 1]. At α = 0 some networks oscillate instead of converging; the engine stops after 10,000 iterations with an error.
-- Errors name the file and line, e.g. `local trust CSV, line 5: weight "NaN" must be finite`.
+- **Weights:** finite and non-negative, default 1. Zero means no trust. Negative trust (distrust) is rejected.
+- **Normalization:** each truster's weights are scaled to sum to 1, and so is pre-trust. With no pre-trust, every peer starts equal.
+- **Duplicates:** a repeated edge or seed keeps its last weight.
+- **Convergence:** at α = 0 some networks oscillate instead of converging. The engine stops after 10,000 iterations with an error.
+- **CSV:** standard CSV, so quoted fields (`"Smith, J"`), a header row, spaces, CRLF and a UTF-8 BOM are fine. Errors name the file and line.
 
 ## Performance
 
@@ -84,18 +111,28 @@ Random trust graphs, 10 links per peer, CSV parsing included.
 | Peers | Links | CLI | Browser |
 | ---: | ---: | ---: | ---: |
 | 20,000 | 200,000 | 0.06 s | 58 ms |
-| 100,000 | 1,000,000 | 0.4 s | 0.2 s |
+| 100,000 | 1,000,000 | 0.3 s | 0.2 s |
 | 250,000 | 2,500,000 | | 0.6 s |
 
-The browser build is multithreaded when the page is cross-origin isolated (see [`demo/vercel.json`](demo/vercel.json)).
+Results are reproducible bit for bit, with or without threads.
+
+## Repository layout
+
+| Path | Crate | Role |
+| --- | --- | --- |
+| [`src/`](src) | `eigentrust` | the library: one implementation of the algorithm |
+| [`cli/`](cli) | `eigentrust-cli` | the `eigentrust` command, built on the library's public API |
+| [`wasm/`](wasm) | `eigentrust-wasm` | JavaScript bindings, built on the same API |
+| [`demo/`](demo) | | the web playground |
 
 ## Development
 
 ```sh
-cargo test --release                  # tests
-./build.sh                            # WASM builds, copied into demo/
-python3 -m http.server -d demo        # run the playground locally
-git config core.hooksPath .githooks   # once per clone
+cargo test --workspace --all-features   # tests, including doc tests
+cargo run --example basic               # library example
+./build.sh                              # WASM builds, copied into demo/
+python3 -m http.server -d demo          # run the playground locally
+git config core.hooksPath .githooks     # once per clone
 ```
 
 ## License

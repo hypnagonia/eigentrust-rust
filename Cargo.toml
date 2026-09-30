@@ -1,43 +1,50 @@
+[workspace]
+members = ["cli", "wasm"]
+resolver = "2"
+
 [package]
 name = "eigentrust"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Jenya <hypnagonia@gmail.com>"]
 license = "MIT OR Apache-2.0"
-description = "Fast EigenTrust reputation algorithm: global trust scores for peer-to-peer networks and social graphs, native and WebAssembly"
-homepage = "https://eigentrust.jenyadoesapps.com"
-readme = "README.md"
-keywords = ["eigentrust", "reputation", "trust", "sybil", "wasm"]
-categories = ["algorithms", "wasm", "science"]
+description = "EigenTrust reputation algorithm: global trust scores for peer-to-peer networks and social graphs, with Sybil resistance"
 repository = "https://github.com/hypnagonia/eigentrust-rust"
+homepage = "https://eigentrust.jenyadoesapps.com"
+documentation = "https://docs.rs/eigentrust"
+readme = "README.md"
+keywords = ["eigentrust", "reputation", "trust", "sybil", "pagerank"]
+categories = ["algorithms", "mathematics", "science"]
+include = [
+    "/src/**/*.rs",
+    "/tests/**/*.rs",
+    "/examples/**/*.rs",
+    "/example/*.csv",
+    "/README.md",
+    "/LICENSE-MIT",
+    "/LICENSE-APACHE",
+]
 
 [features]
-# Multithreaded WASM (wasm-bindgen-rayon). Needs nightly, +atomics and a cross-origin
-# isolated page, see build.sh
-parallel = ["dep:wasm-bindgen-rayon", "dep:rayon"]
-
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen = "0.2.100"
-console_error_panic_hook = "0.1"
-console_log = { version = "1.0", features = ["color"]}
-wasm-bindgen-rayon = { version = "1.3", optional = true }
-rayon = { version = "1.8", optional = true }
-
-[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
-wasm-bindgen-test = "0.3"
-
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-env_logger = "0.10"
-rayon = "1.8"
+default = []
+## Read named peers from CSV (`eigentrust::csv`).
+csv = ["dep:csv"]
+## Multithreaded power iteration with rayon. On wasm32 this needs a threaded build,
+## see the eigentrust-wasm crate.
+parallel = ["dep:rayon"]
 
 [dependencies]
-csv = "1.3"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+csv = { version = "1.3", optional = true }
 log = "0.4"
+rayon = { version = "1.8", optional = true }
 
-[lib]
-crate-type = ["cdylib"]
+[[example]]
+name = "csv"
+required-features = ["csv"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [profile.release]
 lto = true

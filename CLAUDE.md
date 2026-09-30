@@ -8,36 +8,46 @@
 - This is enforced by `.githooks/commit-msg` and by CI. Enable the hook once per clone:
   `git config core.hooksPath .githooks`
 - Never bypass it with `--no-verify`.
+- PRs get squash-merged quickly: start follow-up work from a fresh branch off `main`.
 
 ## Project
 
-EigenTrust in Rust, runs natively and as WASM in the browser.
+EigenTrust in Rust. Cargo workspace:
 
-- `src/basic/engine.rs` - `calculate_from_csv`: CSV in, sorted `(peer, score)` out
-- `src/basic/input.rs` - CSV reading (csv crate), header detection, weight validation
-- `src/basic/eigentrust.rs` - power iteration (`compute`), runs on dense vectors
-- `src/error.rs` - `Error` enum used everywhere; `Display` gives user-facing messages
-- `src/sparse/` - CSR matrix / sparse vector
-- `src/lib.rs` - wasm-bindgen entry `run(localtrust, pretrust, alpha)` (wasm32 only)
-- `src/main.rs` - native CLI, reports errors as `error: ...` with exit code 1
-- `demo/` - static interactive web demo deployed to Vercel
+- `eigentrust` (root, `src/`) - the library. The only implementation of the algorithm.
+  - `lib.rs` - crate docs, the public API (`eigentrust`, `eigentrust_with_options`, re-exports)
+  - `types.rs` (`TrustEdge`, `PreTrust`), `options.rs`, `scores.rs` (`TrustScores`), `error.rs`
+  - `algorithm/` - private: input validation and normalization (`mod.rs`), CSR matrix,
+    power iteration (`power.rs`)
+  - `csv.rs` - `csv` feature: named peers from CSV (`csv::Network`), its own error type
+  - features: `csv`, `parallel` (rayon); default none
+- `eigentrust-cli` (`cli/`) - binary `eigentrust`, uses only the public API
+- `eigentrust-wasm` (`wasm/`) - JS bindings; `convert.rs` is plain Rust, `bindings.rs` wasm32 only;
+  `threads` feature for the multithreaded build; `publish = false`
+- `demo/` - static web playground deployed to Vercel
+
+Keep the public surface small: modules private by default, export through `lib.rs`,
+`#![warn(missing_docs)]` is on.
 
 ## Commands
 
-- Test: `cargo test --release`
-- WASM tests: `wasm-pack test --node --release`
-- Lint: `cargo fmt --check`, `cargo clippy --release --all-targets -- -D warnings`
-  (also with `--target wasm32-unknown-unknown`)
-- CLI: `cargo run --release -- ./example/localtrust.csv ./example/pretrust.csv [alpha]`
-- WASM: `./build.sh` (builds `pkg/` and `pkg-parallel/` and copies them into `demo/`)
+- Test: `cargo test --workspace --all-features` (unit, integration, doc tests incl. README)
+- Library alone: `cargo test -p eigentrust`
+- WASM tests: `wasm-pack test --node --release wasm`
+- Lint: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --all-features -- -D warnings`,
+  and `cargo clippy -p eigentrust -p eigentrust-wasm --target wasm32-unknown-unknown --all-targets -- -D warnings`
+- Docs: `RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo +nightly doc -p eigentrust --all-features --no-deps`
+- Package: `cargo package -p eigentrust -p eigentrust-cli`, check `cargo package -p eigentrust --list`
+- CLI: `cargo run --release -p eigentrust-cli -- ./example/localtrust.csv ./example/pretrust.csv [alpha]`
+- WASM: `./build.sh` (builds `pkg/` and `pkg-parallel/` from `wasm/` and copies them into `demo/`)
 - Demo locally: `python3 -m http.server -d demo` then open http://localhost:8000
 - Deploy: `vercel deploy --prod` from `demo/`
 
 ## Notes
 
-- Tests compare floats with exact equality. The iteration uses Kahan-Babuska-Neumaier summation
-  in row order; keep the summation order if you touch `compute` / `mul_dense`.
-- Duplicate `(i, j)` local trust records and duplicate pre-trust peers: the last one wins.
-- Weights must be finite and non-negative. Distrust (negative weights) is rejected until its
-  effect on the scores is defined; `extract_distrust` / `discount_trust_vector` are kept for that.
-- `compute` stops after `DEFAULT_MAX_ITERATIONS` (10,000) with `Error::NotConverged`.
+- Results must stay bit-identical: compensated (KBN) sums in a fixed order in `power.rs`, plain
+  sums for normalization, stable sorts. Tests compare floats exactly.
+- Duplicate edges and duplicate pre-trust peers: the last one wins.
+- Weights must be finite and non-negative; distrust (negative weights) is rejected.
+- The iteration stops after `max_iterations` (default 10,000) with `EigenTrustError::NotConverged`.
+- Version 0.2.0 is not on crates.io yet; the CI semver job is informational until it is.
