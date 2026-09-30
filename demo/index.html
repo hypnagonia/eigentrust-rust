@@ -20,7 +20,15 @@
         EigenTrust
     </a>
     <nav class="links">
-        <select id="lang" class="lang" data-i18n-aria="language"></select>
+        <div class="langmenu" id="langMenu">
+            <button type="button" class="lang-button" id="langButton" aria-haspopup="listbox" aria-expanded="false" aria-controls="langList">
+                <svg class="globe" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9s1.3-6.4 3.8-9z"/></svg>
+                <span class="lang-name" id="langCurrent">English</span>
+                <span class="lang-code" id="langCode" aria-hidden="true">EN</span>
+                <svg class="chevron" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg>
+            </button>
+            <ul class="lang-list" id="langList" role="listbox" tabindex="-1" hidden></ul>
+        </div>
         <a href="https://github.com/hypnagonia/eigentrust-rust" data-i18n="source">Source</a>
         <span class="profiles">
             <a class="icon-link" href="https://www.linkedin.com/in/zunso/" target="_blank" rel="noopener" aria-label="LinkedIn" title="LinkedIn">

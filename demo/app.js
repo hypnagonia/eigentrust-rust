@@ -509,7 +509,7 @@ canvas.addEventListener('pointerup', (ev) => {
 })
 
 document.addEventListener('keydown', (ev) => {
-    if (ev.target.closest('input, textarea, select')) return
+    if (ev.target.closest('input, textarea, select, [role="listbox"]')) return
     if (ev.key === 'Escape') select(null)
     if ((ev.key === 'Delete' || ev.key === 'Backspace') && state.selected) removePeer(state.selected)
     if (ev.key === 's' && state.selected) toggleSeed(state.selected)
@@ -907,17 +907,89 @@ function localizeNumbers() {
 
 function applyLanguage(code) {
     setLanguage(code)
-    $('lang').value = lang()
+    renderLangMenu()
     localizeNumbers()
     setAlpha(state.alpha)
     renderPanel()
     wake()
 }
 
-$('lang').replaceChildren(...Object.entries(LANGUAGES).map(([code, name]) => el('option', { value: code, lang: code }, name)))
-$('lang').addEventListener('change', (ev) => {
-    saveLanguage(ev.target.value)
-    applyLanguage(ev.target.value)
+// language menu: a button that opens a listbox, keyboard and pointer friendly
+const langButton = $('langButton')
+const langList = $('langList')
+const langCodes = Object.keys(LANGUAGES)
+let langActive = 0
+
+function renderLangMenu() {
+    const cur = lang()
+    $('langCurrent').textContent = LANGUAGES[cur]
+    $('langCode').textContent = cur.toUpperCase()
+    langButton.setAttribute('aria-label', `${t('language')}: ${LANGUAGES[cur]}`)
+    langList.setAttribute('aria-label', t('language'))
+    langList.replaceChildren(...langCodes.map((code, i) => el('li', {
+        id: 'lang-opt-' + code,
+        role: 'option',
+        'aria-selected': String(code === cur),
+        onclick: () => chooseLang(code),
+        onpointermove: () => setLangActive(i),
+    }, el('span', { lang: code, dir: 'auto' }, LANGUAGES[code]), code === cur ? checkIcon() : null)))
+}
+
+function checkIcon() {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    svg.setAttribute('viewBox', '0 0 12 12')
+    svg.setAttribute('width', '12')
+    svg.setAttribute('height', '12')
+    svg.setAttribute('aria-hidden', 'true')
+    svg.classList.add('check')
+    svg.innerHTML = '<path d="M2 6.5 4.8 9 10 3"/>'
+    return svg
+}
+
+function setLangActive(i) {
+    langActive = (i + langCodes.length) % langCodes.length
+    langList.querySelectorAll('li').forEach((li, j) => li.classList.toggle('is-active', j === langActive))
+    langList.setAttribute('aria-activedescendant', 'lang-opt-' + langCodes[langActive])
+}
+
+function openLangMenu() {
+    langList.hidden = false
+    langButton.setAttribute('aria-expanded', 'true')
+    setLangActive(langCodes.indexOf(lang()))
+    langList.focus()
+}
+
+function closeLangMenu(focusButton = true) {
+    if (langList.hidden) return
+    langList.hidden = true
+    langButton.setAttribute('aria-expanded', 'false')
+    if (focusButton) langButton.focus()
+}
+
+function chooseLang(code) {
+    closeLangMenu()
+    if (code === lang()) return
+    saveLanguage(code)
+    applyLanguage(code)
+}
+
+langButton.addEventListener('click', () => (langList.hidden ? openLangMenu() : closeLangMenu()))
+langButton.addEventListener('keydown', (ev) => {
+    if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') { ev.preventDefault(); openLangMenu() }
+})
+langList.addEventListener('keydown', (ev) => {
+    const keys = { ArrowDown: 1, ArrowUp: -1 }
+    if (ev.key in keys) setLangActive(langActive + keys[ev.key])
+    else if (ev.key === 'Home') setLangActive(0)
+    else if (ev.key === 'End') setLangActive(langCodes.length - 1)
+    else if (ev.key === 'Enter' || ev.key === ' ') chooseLang(langCodes[langActive])
+    else if (ev.key === 'Escape') closeLangMenu()
+    else if (ev.key === 'Tab') { closeLangMenu(false); return }
+    else return
+    ev.preventDefault()
+})
+document.addEventListener('pointerdown', (ev) => {
+    if (!langList.hidden && !$('langMenu').contains(ev.target)) closeLangMenu(false)
 })
 
 // ---------- start ----------
