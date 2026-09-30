@@ -1,9 +1,9 @@
+#[cfg(not(target_arch = "wasm32"))]
 use rayon::prelude::*;
 use serde::Serialize;
 use std::cmp::Ordering;
-use std::sync::{Arc, Mutex};
 
-use super::entry::{CooEntry, Entry};
+use super::entry::Entry;
 use super::matrix::CSRMatrix;
 use super::util::KBNSummer;
 
@@ -18,6 +18,27 @@ impl Vector {
         let mut vector = Vector { dim, entries };
         vector.sort_entries_by_index();
         vector
+    }
+
+    pub fn to_dense(&self) -> Vec<f64> {
+        let mut dense = vec![0.0; self.dim];
+        for e in &self.entries {
+            dense[e.index] = e.value;
+        }
+        dense
+    }
+
+    pub fn from_dense(dense: &[f64]) -> Self {
+        let entries = dense
+            .iter()
+            .enumerate()
+            .filter(|(_, &v)| v != 0.0)
+            .map(|(index, &value)| Entry { index, value })
+            .collect();
+        Vector {
+            dim: dense.len(),
+            entries,
+        }
     }
 
     pub fn nnz(&self) -> usize {
@@ -76,10 +97,11 @@ impl Vector {
             return Err("Dimension mismatch".to_string());
         }
 
+        let dense = v1.to_dense();
         let entries: Vec<Entry> = (0..dim)
             .into_par_iter()
             .filter_map(|row| {
-                let product = vec_dot(&m.row_vector(row), v1);
+                let product = dense_dot(&m.cs_matrix.entries[row], &dense);
                 if product != 0.0 {
                     Some(Entry {
                         index: row,
@@ -104,9 +126,10 @@ impl Vector {
             return Err("Dimension mismatch".to_string());
         }
 
+        let dense = v1.to_dense();
         let mut entries = Vec::with_capacity(dim);
         for row in 0..dim {
-            let product = vec_dot(&m.row_vector(row), v1);
+            let product = dense_dot(&m.cs_matrix.entries[row], &dense);
             if product != 0.0 {
                 entries.push(Entry {
                     index: row,
@@ -115,7 +138,6 @@ impl Vector {
             }
         }
 
-        self.entries.sort_by_key(|e| e.index);
         self.dim = dim;
         self.entries = entries;
 
@@ -187,6 +209,17 @@ impl Vector {
         self.entries.iter_mut().for_each(|e| e.value *= a);
         self.entries.retain(|e| e.value != 0.0);
     }
+}
+
+fn dense_dot(row: &[Entry], dense: &[f64]) -> f64 {
+    let mut summer = KBNSummer::new();
+    for e in row {
+        let x = dense[e.index];
+        if x != 0.0 {
+            summer.add(e.value * x);
+        }
+    }
+    summer.sum()
 }
 
 pub fn vec_dot(v1: &Vector, v2: &Vector) -> f64 {

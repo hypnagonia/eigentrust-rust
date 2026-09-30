@@ -1,12 +1,10 @@
-use super::util::current_time_millis;
-use super::util::PeersMap;
 use crate::sparse::entry::Entry;
-use crate::sparse::matrix::{CSMatrix, CSRMatrix};
+#[cfg(test)]
+use crate::sparse::matrix::CSMatrix;
+use crate::sparse::matrix::CSRMatrix;
+use crate::sparse::util::KBNSummer;
 use crate::sparse::vector::Vector;
 use std::cmp;
-use std::collections::HashMap;
-use std::error::Error;
-use std::f64;
 
 // Canonicalize scales sparse entries in-place so that their values sum to one.
 // If entries sum to zero, Canonicalize returns an error indicating a zero-sum vector.
@@ -120,10 +118,14 @@ pub struct FlatTailStats {
 }
 
 // Compute function implements the EigenTrust algorithm.
+//
+// The iteration runs on dense vectors: after a couple of iterations the trust
+// vector is (almost) dense anyway, and a dense lookup turns every row dot
+// product into O(nnz(row)) instead of a sparse-sparse merge walk.
 // todo Error instead of String
-pub fn compute<'a>(
-    mut c: &CSRMatrix,
-    mut p: &Vector,
+pub fn compute(
+    c: &CSRMatrix,
+    p: &Vector,
     a: f64,
     e: f64,
     max_iterations: Option<usize>,
@@ -142,66 +144,52 @@ pub fn compute<'a>(
         return Err("Dimension mismatch".to_string());
     }
 
-    log::debug!("{:?}",p.sum());
-
-    let check_freq = 1;
-    let min_iters = check_freq;
-
-    let t0 = current_time_millis();
-
-    let mut t1 = p.clone();
     let ct = c.transpose()?;
+    ct.cs_matrix.dim()?;
 
-    let mut ap = p.clone();
-    ap.scale_vec(a, p);
-
-    let num_leaders = n;
-
-    let mut conv_checker = ConvergenceChecker::new(&t1, e);
+    let ap: Vec<f64> = p.to_dense().iter().map(|v| v * a).collect();
+    let mut t1 = p.to_dense();
+    let mut prev = t1.clone();
+    let mut t2 = vec![0.0; n];
 
     let flat_tail = 0;
-    let mut flat_tail_checker = FlatTailChecker::new(flat_tail, num_leaders);
+    let mut flat_tail_checker = FlatTailChecker::new(flat_tail, n);
 
     let mut iter = 0;
     let max_iters = max_iterations.unwrap_or(usize::MAX);
     let min_iters = min_iterations.unwrap_or(1);
 
     log::info!(
-        "Compute started dim={}, num_leaders={}, nnz={}, alpha={}, epsilon={}, check_freq={}",
-        p.dim,
-        num_leaders,
-        t1.nnz(),
+        "Compute started dim={}, nnz={}, alpha={}, epsilon={}",
+        n,
+        ct.cs_matrix.nnz(),
         a,
         e,
-        check_freq
     );
 
     while iter < max_iters {
-        let iter_t0 = current_time_millis();
+        if iter >= min_iters {
+            let d = dense_delta_norm2(&t1, &prev);
+            prev.copy_from_slice(&t1);
+            log::trace!("iteration={} delta={}", iter, d);
 
-        println!("iter {:?}", iter);
-        println!("d {:?}", conv_checker.delta());
-        println!("conv_checker.converged() {:?}", conv_checker.converged());
+            // with flat_tail == 0 the ranking check is always satisfied,
+            // skip the O(n log n) sort per iteration
+            if flat_tail > 0 {
+                flat_tail_checker.update(&Vector::from_dense(&t1), d);
+            }
 
-        if iter.saturating_sub(min_iters) % check_freq == 0 {
-            if iter >= min_iters {
-                conv_checker.update(&t1);
-
-                flat_tail_checker.update(&t1, conv_checker.delta());
-
-                if conv_checker.converged() && flat_tail_checker.reached() {
-                    break;
-                }
+            if d <= e && flat_tail_checker.reached() {
+                break;
             }
         }
 
-        let mut new_t1 = t1.clone();
-        new_t1.mul_vec(&ct, &t1)?;
-        let mut t2 = new_t1.clone();
-        t2.scale_vec(1.0 - a, &new_t1);
-        t1.add_vec(&t2, &ap)?;
-
-        let iter_t1 = current_time_millis();
+        // t2 = (1 - a) * C^T * t1 + a * p
+        mul_dense(&ct, &t1, &mut t2);
+        for (x, ap_i) in t2.iter_mut().zip(ap.iter()) {
+            *x = *x * (1.0 - a) + ap_i;
+        }
+        std::mem::swap(&mut t1, &mut t2);
 
         iter += 1;
     }
@@ -210,60 +198,86 @@ pub fn compute<'a>(
         return Err("Reached maximum iterations without convergence".to_string());
     }
 
-    let t1_time = current_time_millis();
-
     log::info!(
-        "finished: alpha={} dim={} nnz={} epsilon={} flatTail={} iterations={} numLeaders={}",
+        "finished: alpha={} dim={} nnz={} epsilon={} flatTail={} iterations={}",
         a,
-        n, 
-        ct.cs_matrix.nnz(), 
-        e, 
-        flat_tail, 
-        iter, 
-        num_leaders, 
+        n,
+        ct.cs_matrix.nnz(),
+        e,
+        flat_tail,
+        iter,
     );
 
-    Ok(t1)
+    Ok(Vector::from_dense(&t1))
 }
 
-pub fn discount_trust_vector(t: &mut Vector, discounts: &CSRMatrix) -> Result<(), String> {
-    let mut i1 = 0;
-    let t1 = t.clone();
+// ||t - prev||2 with compensated summation, same order as the sparse version.
+fn dense_delta_norm2(t: &[f64], prev: &[f64]) -> f64 {
+    let mut summer = KBNSummer::new();
+    for (x, y) in t.iter().zip(prev.iter()) {
+        let d = x - y;
+        if d != 0.0 {
+            summer.add(d * d);
+        }
+    }
+    summer.sum().sqrt()
+}
 
-    'DiscountsLoop: for (distruster, distrusts) in discounts.cs_matrix.entries.iter().enumerate() {
-        'T1Loop: loop {
-            if i1 >= t1.entries.len() {
-                break 'DiscountsLoop;
-            }
-            if t1.entries[i1].index < distruster {
-                i1 += 1;
-                continue 'T1Loop;
-            }
-            if t1.entries[i1].index == distruster {
-                break 'T1Loop;
-            }
-            if t1.entries[i1].index > distruster {
-                continue 'DiscountsLoop;
+// out = m * v for a square CSR matrix and a dense vector.
+fn mul_dense(m: &CSRMatrix, v: &[f64], out: &mut [f64]) {
+    let row_dot = |row: &[Entry]| {
+        let mut summer = KBNSummer::new();
+        for entry in row {
+            let x = v[entry.index];
+            if x != 0.0 {
+                summer.add(entry.value * x);
             }
         }
+        summer.sum()
+    };
 
-        let scaled_distrust_vec = {
-            let mut temp_vec = Vector::new(t.dim, Vec::new());
-            temp_vec.scale_vec(
-                t1.entries[i1].value,
-                &(Vector {
-                    dim: t.dim,
-                    entries: distrusts.clone(),
-                }),
-            );
-            temp_vec
-        };
-
-        let t2 = t.clone();
-        t.sub_vec(&t2, &scaled_distrust_vec)?;
-
-        i1 += 1;
+    #[cfg(any(not(target_arch = "wasm32"), feature = "parallel"))]
+    {
+        use rayon::prelude::*;
+        out.par_iter_mut()
+            .zip(m.cs_matrix.entries.par_iter())
+            .with_min_len(1024)
+            .for_each(|(o, row)| *o = row_dot(row));
     }
+
+    #[cfg(all(target_arch = "wasm32", not(feature = "parallel")))]
+    for (o, row) in out.iter_mut().zip(m.cs_matrix.entries.iter()) {
+        *o = row_dot(row);
+    }
+}
+
+// Subtracts from t each peer's trust-weighted distrust row:
+// t -= sum_i t[i] * discounts[i], applied in distruster order.
+pub fn discount_trust_vector(t: &mut Vector, discounts: &CSRMatrix) -> Result<(), String> {
+    if discounts.cs_matrix.entries.iter().all(|row| row.is_empty()) {
+        return Ok(());
+    }
+
+    let trust = t.to_dense();
+    let mut result = trust.clone();
+
+    for (distruster, distrusts) in discounts.cs_matrix.entries.iter().enumerate() {
+        let weight = match trust.get(distruster) {
+            Some(&w) if w != 0.0 => w,
+            _ => continue,
+        };
+        for entry in distrusts {
+            if entry.index >= result.len() {
+                return Err("Dimension mismatch".to_string());
+            }
+            let scaled = weight * entry.value;
+            if scaled != 0.0 {
+                result[entry.index] -= scaled;
+            }
+        }
+    }
+
+    *t = Vector::from_dense(&result);
     Ok(())
 }
 

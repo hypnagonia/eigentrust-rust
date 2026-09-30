@@ -1,5 +1,3 @@
-use std::cmp::Ordering;
-use std::ops::Add;
 
 pub fn nil_if_empty<T>(slice: Vec<T>) -> Option<Vec<T>> {
     if slice.is_empty() {
