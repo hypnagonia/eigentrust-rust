@@ -61,11 +61,11 @@ impl CSCEntriesSort {
 }
 
 pub fn sort_entries_by_index(entries: &mut [Entry]) {
-    entries.sort_by(|a, b| a.index.cmp(&b.index));
+    entries.sort_by_key(|e| e.index);
 }
 
 pub fn sort_entries_by_value(entries: &mut [Entry]) {
-    entries.sort_by(|a, b| a.value.partial_cmp(&b.value).unwrap());
+    entries.sort_by(|a, b| a.value.total_cmp(&b.value));
 }
 
 #[cfg(test)]
