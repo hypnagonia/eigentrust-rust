@@ -15,14 +15,14 @@ const ready = (async () => {
                 m.initThreadPool(threads),
                 new Promise((_, reject) => setTimeout(() => reject(new Error('thread pool timeout')), 8000)),
             ])
-            return { run: m.run, mode: `WebAssembly, ${threads} threads` }
+            return { run: m.run, threads }
         } catch (e) {
             console.warn('parallel build unavailable, falling back', e)
         }
     }
     const m = await import('./pkg/eigentrust.js')
     await m.default()
-    return { run: m.run, mode: 'WebAssembly, 1 thread' }
+    return { run: m.run, threads: 1 }
 })()
 
 const encoder = new TextEncoder()
@@ -30,14 +30,14 @@ const encoder = new TextEncoder()
 self.onmessage = async ({ data }) => {
     const { id, localtrust, pretrust, alpha } = data
     try {
-        const { run, mode } = await ready
+        const { run, threads } = await ready
         const lt = typeof localtrust === 'string' ? encoder.encode(localtrust) : localtrust
         const pt = typeof pretrust === 'string' ? encoder.encode(pretrust) : pretrust
         const t0 = performance.now()
         const out = JSON.parse(run(lt, pt, alpha))
         const ms = performance.now() - t0
-        if (out.Err !== undefined) self.postMessage({ id, error: out.Err, mode })
-        else self.postMessage({ id, scores: out.Ok, ms, mode })
+        if (out.Err !== undefined) self.postMessage({ id, error: out.Err, threads })
+        else self.postMessage({ id, scores: out.Ok, ms, threads })
     } catch (e) {
         self.postMessage({ id, error: String(e && e.message || e), fatal: true })
     }
