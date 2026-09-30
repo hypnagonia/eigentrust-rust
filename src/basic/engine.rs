@@ -1,18 +1,10 @@
 use super::util::strip_headers;
 use crate::basic::eigentrust::compute;
 use crate::basic::eigentrust::discount_trust_vector;
-use crate::basic::localtrust::{
-    canonicalize_local_trust,
-    extract_distrust,
-    read_local_trust_from_csv,
-};
+use crate::basic::localtrust::{canonicalize_local_trust, extract_distrust, read_local_trust_from_csv};
 use crate::basic::trustvector::canonicalize_trust_vector;
 use crate::basic::trustvector::read_trust_vector_from_csv;
-use crate::sparse::entry::Entry;
-use crate::sparse::matrix::{ CSMatrix, CSRMatrix };
-use crate::sparse::vector::Vector;
-use std::collections::HashMap;
-use std::f64::INFINITY;
+#[cfg(test)]
 use std::fs;
 
 // todo array inputs
@@ -20,22 +12,23 @@ use std::fs;
 pub fn calculate_from_csv(
     localtrust_csv: &str,
     pretrust_csv: &str,
-    alpha: Option<f64>
+    alpha: Option<f64>,
 ) -> Result<Vec<(String, f64)>, String> {
     log::info!("Compute starting...");
 
     let a = alpha.unwrap_or(0.5);
+    if !(0.0..=1.0).contains(&a) {
+        return Err(format!("alpha must be in [0, 1], got {}", a));
+    }
 
-    let localtrust_csv = strip_headers(localtrust_csv);
-    let pretrust_csv = strip_headers(pretrust_csv);
+    let localtrust_csv = strip_headers(localtrust_csv, 2);
+    let pretrust_csv = strip_headers(pretrust_csv, 1);
 
-    let (mut local_trust, peers) = read_local_trust_from_csv(&localtrust_csv).unwrap();
+    let (mut local_trust, peers) = read_local_trust_from_csv(localtrust_csv)?;
 
-    let mut peer_indices = peers.map;
+    let mut pre_trust = read_trust_vector_from_csv(pretrust_csv, &peers.map)?;
 
-    let mut pre_trust = read_trust_vector_from_csv(pretrust_csv, &peer_indices).unwrap();
-
-    let c_dim = local_trust.cs_matrix.dim().unwrap();
+    let c_dim = local_trust.cs_matrix.dim()?;
 
     let e = 1e-6 / (c_dim as f64);
 
@@ -48,25 +41,25 @@ pub fn calculate_from_csv(
 
     canonicalize_trust_vector(&mut pre_trust);
 
-    let mut discounts = extract_distrust(&mut local_trust).unwrap();
+    let mut discounts = extract_distrust(&mut local_trust)?;
 
-    canonicalize_local_trust(&mut local_trust, Some(pre_trust.clone())).unwrap();
-    canonicalize_local_trust(&mut discounts, None).unwrap();
+    canonicalize_local_trust(&mut local_trust, Some(pre_trust.clone()))?;
+    canonicalize_local_trust(&mut discounts, None)?;
 
-    let mut trust_scores = compute(&local_trust, &pre_trust, a, e, None, None).unwrap();
+    let trust_scores = compute(&local_trust, &pre_trust, a, e, None, None)?;
 
-    let mut trust_scores2 = trust_scores.clone();
-    discount_trust_vector(&mut trust_scores2, &discounts)?;
+    // todo: discounted scores are computed but not returned (same as before),
+    // decide whether distrust should affect the output
+    let mut discounted = trust_scores.clone();
+    discount_trust_vector(&mut discounted, &discounts)?;
 
-    let mut entries = vec![];
+    let mut entries: Vec<(String, f64)> = trust_scores
+        .entries
+        .iter()
+        .map(|e| (peers.names[e.index].clone(), e.value))
+        .collect();
 
-    for e in &trust_scores.entries {
-        let name_ref = peers.map_reversed.get(&e.index).unwrap();
-        let name = name_ref.clone();
-        entries.push((name, e.value));
-    }
-
-    entries.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+    entries.sort_by(|a, b| b.1.total_cmp(&a.1));
 
     Ok(entries)
 }
@@ -112,7 +105,8 @@ mod tests {
         assert_eq!(entries.len(), 9);
         assert!(entries[0].1 >= entries[1].1);
         assert_eq!(entries[0].0, "0x84e1056ed1b76fb03b43e924ef98833dba394b2b");
-        assert_eq!(entries[0].1, 0.4034661335389856);
+        // the file contains duplicate (i, j) records, the last one wins
+        assert_eq!(entries[0].1, 0.40356129084997394);
         assert_eq!(entries[1].0, "0x9fc3b33884e1d056a8ca979833d686abd267f9f8");
     }
 }

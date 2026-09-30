@@ -1,9 +1,7 @@
-use super::util::PeersMap;
-use crate::sparse::entry::CooEntry;
+use super::util::{clean_field, PeersMap};
 use crate::sparse::entry::Entry;
 use crate::sparse::matrix::CSRMatrix;
 use crate::sparse::vector::Vector;
-use std::collections::HashMap;
 
 pub fn canonicalize_local_trust(
     local_trust: &mut CSRMatrix,
@@ -65,56 +63,51 @@ pub fn extract_distrust(local_trust: &mut CSRMatrix) -> Result<CSRMatrix, String
 }
 
 fn parse_csv_line(line: &str, peer_indices: &mut PeersMap) -> Result<(usize, usize, f64), String> {
-    let fields: Vec<&str> = line.split(',').collect();
+    let mut fields = line.split(',').map(clean_field);
 
-    if fields.len() < 2 {
-        return Err("Too few fields".to_string());
-    }
-    let from = peer_indices.insert_or_get(fields[0].to_string());
-    let to = peer_indices.insert_or_get(fields[1].to_string());
-    let level = if fields.len() >= 3 {
-        fields[2]
-            .parse::<f64>()
-            .map_err(|_| "Invalid trust level")?
-    } else {
-        1.0
+    let (from, to) = match (fields.next(), fields.next()) {
+        (Some(from), Some(to)) => (from, to),
+        _ => return Err("Too few fields".to_string()),
+    };
+    let from = peer_indices.insert_or_get(from);
+    let to = peer_indices.insert_or_get(to);
+    let level = match fields.next() {
+        Some(level) => level.parse::<f64>().map_err(|_| "Invalid trust level")?,
+        None => 1.0,
     };
     Ok((from, to, level))
 }
 
 // todo move csv logic out of this scope, cooentry
 pub fn read_local_trust_from_csv(csv_data: &str) -> Result<(CSRMatrix, PeersMap), String> {
-    let mut entries: Vec<(usize, usize, f64)> = Vec::new();
-    let mut max_from = 0;
-    let mut max_to = 0;
+    // rows are filled directly while parsing; the matrix grows as new peers appear
+    let mut rows: Vec<Vec<Entry>> = Vec::new();
     let mut peer_indices = PeersMap::new();
 
     for (count, line) in csv_data.lines().enumerate() {
-        let parsed_result = parse_csv_line(line, &mut peer_indices);
-        match parsed_result {
-            Ok((from, to, level)) => {
-                if from > max_from {
-                    max_from = from;
-                }
-                if to > max_to {
-                    max_to = to;
-                }
-
-                entries.push((from, to, level));
-            }
-            Err(e) => {
-                return Err(format!(
-                    "Cannot parse local trust CSV record #{}: {:?} {:?}",
-                    count + 1,
-                    e,
-                    line
-                ));
-            }
+        if line.trim().is_empty() {
+            continue;
         }
+        let (from, to, level) = parse_csv_line(line, &mut peer_indices).map_err(|e| {
+            format!(
+                "Cannot parse local trust CSV record #{}: {:?} {:?}",
+                count + 1,
+                e,
+                line
+            )
+        })?;
+        if from >= rows.len() {
+            rows.resize_with(from + 1, Vec::new);
+        }
+        rows[from].push(Entry::new(to, level));
     }
 
-    let dim = max_from.max(max_to) + 1;
-    Ok((CSRMatrix::new(dim, dim, entries), peer_indices))
+    let dim = peer_indices.names.len();
+    if dim == 0 {
+        return Err("Local trust is empty".to_string());
+    }
+    rows.resize_with(dim, Vec::new);
+    Ok((CSRMatrix::from_rows(dim, rows), peer_indices))
 }
 
 #[cfg(test)]

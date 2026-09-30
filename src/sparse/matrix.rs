@@ -1,7 +1,5 @@
-use super::entry::{Entry, CooEntry};
+use super::entry::Entry;
 use super::vector::Vector;
-use std::cmp::Ordering;
-use std::ptr;
 
 
 #[derive(Clone, PartialEq, Debug)]
@@ -124,6 +122,22 @@ fn merge_span(s1: &[Entry], s2: &[Entry]) -> Vec<Entry> {
     s
 }
 
+fn dedup_keep_last(row: &mut Vec<Entry>) {
+    if row.len() < 2 {
+        return;
+    }
+    let mut write = 0;
+    for read in 1..row.len() {
+        if row[read].index == row[write].index {
+            row[write].value = row[read].value;
+        } else {
+            write += 1;
+            row[write] = row[read].clone();
+        }
+    }
+    row.truncate(write + 1);
+}
+
 #[derive(Clone, PartialEq, Debug)]
 pub struct CSRMatrix {
     pub cs_matrix: CSMatrix,
@@ -134,20 +148,27 @@ impl CSRMatrix {
         let mut matrix_entries = vec![Vec::new(); rows];
 
         for (row, col, value) in entries {
-            if value != 0.0 {
-                matrix_entries[row].push(Entry { index: col, value });
-            }
+            matrix_entries[row].push(Entry { index: col, value });
         }
 
-        for row in &mut matrix_entries {
-            row.sort_by(|a, b| a.index.cmp(&b.index));
+        Self::from_rows(cols, matrix_entries)
+    }
+
+    // Builds a matrix from unsorted rows. Duplicate columns in a row collapse to the
+    // last one (same as go-eigentrust merge semantics), zero values are dropped.
+    pub fn from_rows(cols: usize, mut rows: Vec<Vec<Entry>>) -> Self {
+        for row in &mut rows {
+            // stable sort keeps input order among duplicates, so the last record wins
+            row.sort_by_key(|e| e.index);
+            dedup_keep_last(row);
+            row.retain(|e| e.value != 0.0);
         }
 
         CSRMatrix {
             cs_matrix: CSMatrix {
-                major_dim: rows,
+                major_dim: rows.len(),
                 minor_dim: cols,
-                entries: matrix_entries,
+                entries: rows,
             },
         }
     }
@@ -487,6 +508,18 @@ mod tests {
 
         m.merge(&mut m2);
         assert_eq!(m, merged);
+    }
+
+    #[test]
+    fn test_new_csr_matrix_duplicates_last_wins() {
+        let m = CSRMatrix::new(2, 2, vec![(0, 1, 1.0), (0, 0, 3.0), (0, 1, 5.0), (1, 1, 2.0)]);
+        assert_eq!(
+            m.cs_matrix.entries,
+            vec![
+                vec![Entry::new(0, 3.0), Entry::new(1, 5.0)],
+                vec![Entry::new(1, 2.0)],
+            ]
+        );
     }
 
     #[test]

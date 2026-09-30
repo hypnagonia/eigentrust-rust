@@ -1,0 +1,11 @@
+#!/bin/sh
+# Rejects commits that credit Claude / Anthropic as a co-author.
+# Enable once per clone: git config core.hooksPath .githooks
+
+msg_file="$1"
+
+if grep -v '^#' "$msg_file" | grep -qiE 'co-authored-by:.*(claude|anthropic)|generated with .*claude|noreply@anthropic\.com'; then
+    echo "commit-msg: Claude / Anthropic attribution is not allowed in this repo." >&2
+    echo "Remove the Co-Authored-By / 'Generated with Claude' lines and commit again." >&2
+    exit 1
+fi

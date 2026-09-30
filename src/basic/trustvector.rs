@@ -1,15 +1,14 @@
+use super::util::clean_field;
 use crate::sparse::entry::Entry;
 use crate::sparse::vector::Vector;
 use std::collections::{HashMap, HashSet};
-use std::error::Error;
-use std::fmt;
 
 // CanonicalizeTrustVector canonicalizes the trust vector in-place,
 // scaling it so that the elements sum to one,
 // or making it a uniform vector that sums to one if it's a zero vector.
 pub fn canonicalize_trust_vector(v: &mut Vector) {
     if canonicalize(&mut v.entries).is_err() {
-        let dim = v.entries.len();
+        let dim = v.dim;
         let c = 1.0 / dim as f64;
         v.entries.clear();
         for i in 0..dim {
@@ -49,13 +48,15 @@ pub fn read_trust_vector_from_csv(
     let mut max_peer = -1;
     let mut entries = Vec::new();
     let mut seen_peers = HashSet::new();
-    let remove_dublicates = true;
     let duplicate_handling = DuplicateHandling::Allow;
     let mut dublicate_count = 0;
 
     for line in input.lines() {
         count += 1;
-        let fields: Vec<&str> = line.split(',').collect();
+        if line.trim().is_empty() {
+            continue;
+        }
+        let fields: Vec<&str> = line.split(',').map(clean_field).collect();
 
         let (peer, level) = match fields.len() {
             0 => return Err(format!("Too few fields in line {}", count)),
@@ -122,4 +123,17 @@ fn parse_trust_level(level_str: &str) -> Result<f64, String> {
     level_str
         .parse::<f64>()
         .map_err(|_| format!("Invalid trust level: {}", level_str))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_canonicalize_zero_vector_is_uniform_over_dim() {
+        let mut v = Vector::new(4, vec![]);
+        canonicalize_trust_vector(&mut v);
+        assert_eq!(v.entries.len(), 4);
+        assert!(v.entries.iter().all(|e| e.value == 0.25));
+    }
 }
