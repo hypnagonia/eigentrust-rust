@@ -27,6 +27,8 @@ Based on the [EigenTrust paper](https://nlp.stanford.edu/pubs/eigentrust.pdf) (K
 
 **[eigentrust.jenyadoesapps.com](https://eigentrust.jenyadoesapps.com)**: edit a network, move the α slider, see the ranking update. You can also rank 250,000 peers in the browser.
 
+Available in English, Español, 中文, हिन्दी, العربية, Português, Français, Deutsch, Русский and 日本語. The language follows your browser; you can change it in the header or with `?lang=`.
+
 ## Command line
 
 ```sh

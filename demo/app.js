@@ -1,5 +1,7 @@
 // EigenTrust playground: an editable trust network ranked live by the WASM engine.
 
+import { LANGUAGES, detectLanguage, saveLanguage, setLanguage, lang, t, num } from './i18n.js'
+
 const MAX_GRAPH_PEERS = 400
 const NAMES = ['alice', 'bob', 'carol', 'dave', 'erin', 'frank', 'grace', 'heidi', 'ivan', 'judy',
     'mallory', 'niaj', 'olivia', 'peggy', 'rupert', 'trent', 'victor', 'walter', 'yara', 'zoe']
@@ -190,18 +192,19 @@ async function compute() {
         $('stats').textContent = res.error
     } else {
         state.scores = res.scores
-        state.lastRun = { ms: res.ms, mode: res.mode }
+        state.lastRun = { ms: res.ms, threads: res.threads }
     }
-    if (res.mode) $('engine').textContent = engineText()
+    if (res.threads) $('engine').textContent = engineText()
     applyScores()
     if (dirty) compute()
 }
 
+const fmtMs = (ms) => ms < 1 ? num(ms, { maximumFractionDigits: 2 }) : ms < 10 ? num(ms, { maximumFractionDigits: 1 }) : num(Math.round(ms))
+const modeText = (threads) => t('mode', { n: num(threads || 1) })
+
 function engineText() {
-    if (!state.lastRun) return 'Running in your browser'
-    const ms = state.lastRun.ms
-    const t = ms < 1 ? ms.toFixed(2) : ms < 10 ? ms.toFixed(1) : Math.round(ms).toLocaleString()
-    return `Ranked in ${t} ms, ${state.lastRun.mode}`
+    if (!state.lastRun) return t('running')
+    return t('rankedIn', { ms: fmtMs(state.lastRun.ms), mode: modeText(state.lastRun.threads) })
 }
 
 function applyScores() {
@@ -521,10 +524,10 @@ function select(id) {
 // ---------- panel ----------
 
 const fmtShare = (s) => {
-    const pct = s * 100
-    if (pct === 0) return '0%'
-    if (pct < 0.01) return '<0.01%'
-    return (pct < 1 ? pct.toFixed(2) : pct.toFixed(1)) + '%'
+    if (s === 0) return num(0, { style: 'percent' })
+    if (s < 0.0001) return '<' + num(0.0001, { style: 'percent', maximumFractionDigits: 2 })
+    const digits = s < 0.01 ? 2 : 1
+    return num(s, { style: 'percent', minimumFractionDigits: digits, maximumFractionDigits: digits })
 }
 
 function el(tag, attrs = {}, ...children) {
@@ -548,11 +551,11 @@ function renderStage() {
     const note = $('stageNote')
     let text = ''
     if (state.large) {
-        text = `This network has ${state.large.peers.toLocaleString()} peers, too many to draw. The full ranking is in the panel. Pick a starting network to go back to the graph.`
+        text = t('noteLarge', { n: num(state.large.peers) })
     } else if (state.peers.size === 0) {
-        text = 'Double-click anywhere to add a peer, or pick a starting network in the panel.'
+        text = t('noteEmpty')
     } else if (state.edges.size === 0) {
-        text = 'Click a peer, then click another to add trust between them.'
+        text = t('noteNoLinks')
     }
     note.textContent = text
     note.hidden = !text
@@ -578,26 +581,26 @@ function renderRanking() {
             onclick: () => { if (!state.large) select(id === state.selected ? null : id) },
             'aria-pressed': String(id === state.selected),
         },
-        el('span', { class: 'rank' }, score > 0 ? String(i + 1) : ''),
+        el('span', { class: 'rank' }, score > 0 ? num(i + 1) : ''),
         el('span', { class: 'name' + (state.seeds.has(id) ? ' is-seed' : ''), title: id }, id),
         el('span', { class: 'bar' }, el('i', { style: `width:${(score / max) * 100}%` })),
         el('span', { class: 'score' }, fmtShare(score)))
         list.append(el('li', {}, button))
     })
-    if (rows.length > shown.length) list.append(el('li', { class: 'ranking-more' }, `and ${(rows.length - shown.length).toLocaleString()} more`))
-    if (!rows.length) list.append(el('li', { class: 'ranking-more' }, 'Scores appear once peers trust each other.'))
+    if (rows.length > shown.length) list.append(el('li', { class: 'ranking-more' }, t('more', { n: num(rows.length - shown.length) })))
+    if (!rows.length) list.append(el('li', { class: 'ranking-more' }, t('noScores')))
 
     if (state.large) {
-        stats.textContent = `${state.large.peers.toLocaleString()} peers`
+        stats.textContent = t('statPeers', { n: num(state.large.peers) })
     } else {
-        const parts = [`${state.peers.size} peers, ${state.edges.size} links`]
+        const parts = [t('statNetwork', { p: num(state.peers.size), l: num(state.edges.size) })]
         const sybils = [...state.peers.values()].filter((p) => p.group === 'sybil')
         if (sybils.length && state.scores.length) {
-            parts.push(`sybils hold ${fmtShare(sybils.reduce((s, p) => s + p.score, 0))}`)
+            parts.push(t('statSybil', { x: fmtShare(sybils.reduce((s, p) => s + p.score, 0)) }))
         } else if (state.seeds.size === 0 && state.edges.size) {
-            parts.push('no seeds, everyone starts equal')
+            parts.push(t('statNoSeeds'))
         }
-        stats.textContent = parts.join(', ')
+        stats.textContent = parts.join(lang() === 'zh' || lang() === 'ja' ? '，' : lang() === 'ar' ? '، ' : ', ')
     }
     $('engine').textContent = engineText()
 }
@@ -613,30 +616,30 @@ function renderSelected() {
     const others = [...state.peers.keys()].filter((o) => o !== id && !state.edges.has(edgeKey(id, o)))
     const isSeed = state.seeds.has(id)
 
-    const addSelect = el('select', { 'aria-label': `Peer ${id} should trust` }, others.map((o) => el('option', { value: o }, o)))
+    const addSelect = el('select', { 'aria-label': t('ariaShouldTrust', { id }) }, others.map((o) => el('option', { value: o }, o)))
 
     box.replaceChildren(
         el('div', { class: 'sel-head' },
             el('h3', {}, id),
-            el('span', { class: 'sel-score' }, p.score > 0 ? `${fmtShare(p.score)}, rank ${rank + 1}` : 'no trust yet')),
+            el('span', { class: 'sel-score' }, p.score > 0 ? t('selScore', { x: fmtShare(p.score), r: num(rank + 1) }) : t('noTrustYet'))),
         el('div', { class: 'sel-actions' },
-            el('button', { type: 'button', class: isSeed ? 'seed-on' : '', 'aria-pressed': String(isSeed), onclick: () => toggleSeed(id) }, isSeed ? 'Seed peer' : 'Make seed'),
-            el('button', { type: 'button', onclick: () => removePeer(id) }, 'Remove peer'),
-            el('button', { type: 'button', onclick: () => select(null) }, 'Done')),
-        el('h4', {}, `Trusts (${out.length})`),
+            el('button', { type: 'button', class: isSeed ? 'seed-on' : '', 'aria-pressed': String(isSeed), onclick: () => toggleSeed(id) }, isSeed ? t('isSeed') : t('makeSeed')),
+            el('button', { type: 'button', onclick: () => removePeer(id) }, t('removePeer')),
+            el('button', { type: 'button', onclick: () => select(null) }, t('done'))),
+        el('h4', {}, t('trusts', { n: num(out.length) })),
         out.length
             ? el('ul', { class: 'edges' }, out.map((e) => el('li', {},
                 el('span', {}, e.to),
                 el('input', {
-                    type: 'number', min: '0', step: '1', value: String(e.w), 'aria-label': `Trust from ${id} to ${e.to}`,
+                    type: 'number', min: '0', step: '1', value: String(e.w), 'aria-label': t('ariaTrust', { a: id, b: e.to }),
                     onchange: (ev) => setEdge(id, e.to, parseFloat(ev.target.value)),
                 }),
-                el('button', { type: 'button', 'aria-label': `Remove trust from ${id} to ${e.to}`, onclick: () => setEdge(id, e.to, 0) }, 'Remove'))))
-            : el('p', { class: 'empty-note' }, 'Click another peer in the graph to add trust.'),
+                el('button', { type: 'button', 'aria-label': t('ariaRemoveTrust', { a: id, b: e.to }), onclick: () => setEdge(id, e.to, 0) }, t('remove')))))
+            : el('p', { class: 'empty-note' }, t('trustsEmpty')),
         others.length ? el('div', { class: 'add-edge' }, addSelect,
-            el('button', { type: 'button', onclick: () => { setEdge(id, addSelect.value, 1); reheat(0.25) } }, 'Add trust')) : null,
-        el('h4', {}, `Trusted by (${inc.length})`),
-        el('p', { class: 'empty-note' }, inc.length ? inc.map((e) => `${e.from} (${e.w})`).join(', ') : 'Nobody yet.'),
+            el('button', { type: 'button', onclick: () => { setEdge(id, addSelect.value, 1); reheat(0.25) } }, t('addTrust'))) : null,
+        el('h4', {}, t('trustedBy', { n: num(inc.length) })),
+        el('p', { class: 'empty-note' }, inc.length ? inc.map((e) => `${e.from} (${num(e.w)})`).join(', ') : t('nobody')),
     )
     box.hidden = false
 }
@@ -646,7 +649,7 @@ function renderSelected() {
 function setAlpha(a) {
     state.alpha = a
     $('alpha').value = a
-    $('alphaOut').textContent = a.toFixed(2)
+    $('alphaOut').textContent = num(a, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 $('alpha').addEventListener('input', (ev) => { setAlpha(parseFloat(ev.target.value)); changed() })
@@ -661,11 +664,11 @@ $('share').addEventListener('click', async () => {
     writeHash()
     try {
         await navigator.clipboard.writeText(location.href)
-        $('share').textContent = 'Link copied'
+        $('share').textContent = t('linkCopied')
     } catch {
-        $('share').textContent = 'Copy from the address bar'
+        $('share').textContent = t('copyFallback')
     }
-    setTimeout(() => { $('share').textContent = 'Copy link' }, 1600)
+    setTimeout(() => { $('share').textContent = t('copyLink') }, 1600)
 })
 
 // tabs
@@ -676,7 +679,8 @@ for (const t of tabs) {
 $('tab-network').parentElement.addEventListener('keydown', (ev) => {
     if (ev.key !== 'ArrowRight' && ev.key !== 'ArrowLeft') return
     const cur = tabs.findIndex((t) => $('tab-' + t).getAttribute('aria-selected') === 'true')
-    const next = tabs[(cur + (ev.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length]
+    const forward = (ev.key === 'ArrowRight') !== (document.documentElement.dir === 'rtl')
+    const next = tabs[(cur + (forward ? 1 : tabs.length - 1)) % tabs.length]
     showTab(next)
     $('tab-' + next).focus()
 })
@@ -710,7 +714,7 @@ for (const [key, fileId, textId] of [['lt', 'ltFile', 'ltText'], ['pt', 'ptFile'
         const text = await file.text()
         if (text.length > BIG_TEXT) {
             bigFiles[key] = text
-            $(textId).value = `${file.name}: ${countLines(text).toLocaleString()} lines, too large to edit here.`
+            $(textId).value = t('tooLarge', { name: file.name, n: num(countLines(text)) })
             $(textId).readOnly = true
         } else {
             bigFiles[key] = null
@@ -757,12 +761,12 @@ $('csvLoad').addEventListener('click', async () => {
     const pt = bigFiles.pt ?? $('ptText').value
     const btn = $('csvLoad')
     btn.disabled = true
-    btn.textContent = 'Ranking'
+    btn.textContent = t('busy')
     const res = await runEngine(lt, pt, state.alpha)
     btn.disabled = false
-    btn.textContent = 'Load into network'
+    btn.textContent = t('loadNetwork')
     if (res.error) {
-        err.textContent = `The engine rejected this input: ${res.error}`
+        err.textContent = t('rejected', { e: res.error })
         err.hidden = false
         return
     }
@@ -774,7 +778,7 @@ $('csvLoad').addEventListener('click', async () => {
         const count = ltRows ? peers.size : new Set(lt.split('\n').flatMap((l) => l.split(',').slice(0, 2).map(clean)).filter(Boolean)).size
         state.large = { lt, pt, peers: count }
         state.scores = res.scores
-        state.lastRun = { ms: res.ms, mode: res.mode }
+        state.lastRun = { ms: res.ms, threads: res.threads }
         applyScores()
         renderPanel()
         wake()
@@ -829,12 +833,12 @@ $('benchRun').addEventListener('click', async () => {
     const out = $('benchOut')
     const btn = $('benchRun')
     btn.disabled = true
-    out.replaceChildren(el('p', {}, `Generating ${n.toLocaleString()} peers`))
+    out.replaceChildren(el('p', {}, t('generating', { n: num(n) })))
     await new Promise((r) => setTimeout(r, 30))
     const t0 = performance.now()
     const net = generateNetwork(n, degree)
     const genMs = performance.now() - t0
-    out.replaceChildren(el('p', {}, `Ranking ${net.edges.toLocaleString()} trust statements`))
+    out.replaceChildren(el('p', {}, t('rankingN', { n: num(net.edges) })))
     const size = net.lt.length
     const res = await runEngine(net.lt, net.pt, state.alpha)
     btn.disabled = false
@@ -843,8 +847,11 @@ $('benchRun').addEventListener('click', async () => {
         return
     }
     out.replaceChildren(
-        el('div', { class: 'big' }, `${Math.round(res.ms).toLocaleString()} ms`),
-        el('p', {}, `to parse ${(size / 1e6).toFixed(1)} MB of CSV and rank ${n.toLocaleString()} peers from ${net.edges.toLocaleString()} trust statements with α ${state.alpha.toFixed(2)}. ${res.mode}. Generating the data took ${Math.round(genMs)} ms.`),
+        el('div', { class: 'big' }, `${num(Math.round(res.ms))} ms`),
+        el('p', {}, t('benchResult', {
+            mb: num(size / 1e6, { maximumFractionDigits: 1 }), n: num(n), e: num(net.edges),
+            a: num(state.alpha, { minimumFractionDigits: 2 }), mode: modeText(res.threads), g: num(Math.round(genMs)),
+        })),
         el('ol', { class: 'ranking' }, res.scores.slice(0, 8).map(([p, s], i) => el('li', {}, el('button', { type: 'button', tabindex: '-1' },
             el('span', { class: 'rank' }, String(i + 1)), el('span', { class: 'name' }, p),
             el('span', { class: 'bar' }, el('i', { style: `width:${(s / res.scores[0][1]) * 100}%` })),
@@ -891,7 +898,30 @@ function readHash() {
     }
 }
 
+// ---------- language ----------
+
+function localizeNumbers() {
+    for (const o of $('benchPeers').options) o.textContent = num(parseInt(o.value, 10))
+    for (const o of $('benchDegree').options) o.textContent = num(parseInt(o.value, 10))
+}
+
+function applyLanguage(code) {
+    setLanguage(code)
+    $('lang').value = lang()
+    localizeNumbers()
+    setAlpha(state.alpha)
+    renderPanel()
+    wake()
+}
+
+$('lang').replaceChildren(...Object.entries(LANGUAGES).map(([code, name]) => el('option', { value: code, lang: code }, name)))
+$('lang').addEventListener('change', (ev) => {
+    saveLanguage(ev.target.value)
+    applyLanguage(ev.target.value)
+})
+
 // ---------- start ----------
 
+applyLanguage(detectLanguage())
 resize()
 if (!readHash()) loadNetwork(PRESETS.friends)

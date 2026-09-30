@@ -85,7 +85,17 @@ button, select, input, textarea { font: inherit; color: inherit; }
 .brand-edge { stroke: var(--trust); stroke-width: 2.5; }
 
 .links { display: flex; align-items: center; gap: 20px; }
-.profiles { display: flex; align-items: center; gap: 14px; padding-left: 20px; border-left: 1px solid var(--line); }
+.lang {
+    width: auto;
+    padding: 3px 8px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 14px;
+}
+.lang:hover { color: var(--ink); border-color: var(--muted); }
+.profiles { display: flex; align-items: center; gap: 14px; padding-inline-start: 20px; border-inline-start: 1px solid var(--line); }
 .icon-link { display: inline-flex; padding: 2px; }
 .icon-link svg { display: block; }
 .links a { color: var(--muted); text-decoration: none; }
@@ -108,7 +118,7 @@ button, select, input, textarea { font: inherit; color: inherit; }
 .intro {
     position: absolute;
     top: 8px;
-    left: 20px;
+    inset-inline-start: 20px;
     max-width: 30rem;
     pointer-events: none;
     z-index: 1;
@@ -122,6 +132,8 @@ button, select, input, textarea { font: inherit; color: inherit; }
     text-wrap: balance;
 }
 .intro p { margin: 0; color: var(--muted); max-width: 26rem; }
+/* negative tracking breaks Arabic joining and crowds Devanagari and CJK */
+:lang(ar) .intro h1, :lang(hi) .intro h1, :lang(zh) .intro h1, :lang(ja) .intro h1 { letter-spacing: 0; line-height: 1.25; }
 
 .stage-note {
     position: absolute;
@@ -135,7 +147,7 @@ button, select, input, textarea { font: inherit; color: inherit; }
 
 .stage-tools {
     position: absolute;
-    left: 20px;
+    inset-inline-start: 20px;
     bottom: 16px;
     display: flex;
     gap: 8px;
@@ -144,7 +156,7 @@ button, select, input, textarea { font: inherit; color: inherit; }
 
 .legend {
     position: absolute;
-    right: 20px;
+    inset-inline-end: 20px;
     bottom: 20px;
     display: flex;
     gap: 16px;
@@ -183,7 +195,7 @@ button.link { border: 0; background: none; padding: 0; color: var(--trust); bord
 
 .panel {
     background: var(--surface);
-    border-left: 1px solid var(--line);
+    border-inline-start: 1px solid var(--line);
     display: flex;
     flex-direction: column;
     min-height: 0;
@@ -278,16 +290,16 @@ textarea {
     border-radius: 6px;
     background: none;
     padding: 4px 6px;
-    text-align: left;
+    text-align: start;
     font-size: 14px;
 }
 .ranking li button:hover, .ranking li button.is-selected { background: var(--trust-soft); }
 .ranking .rank { color: var(--muted); font-size: 12.5px; }
 .ranking .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ranking .name.is-seed::after { content: ""; display: inline-block; width: 7px; height: 7px; margin-left: 6px; border-radius: 50%; border: 2px solid var(--seed); vertical-align: 1px; }
+.ranking .name.is-seed::after { content: ""; display: inline-block; width: 7px; height: 7px; margin-inline-start: 6px; border-radius: 50%; border: 2px solid var(--seed); vertical-align: 1px; }
 .ranking .bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
 .ranking .bar i { display: block; height: 100%; background: var(--trust); border-radius: 3px; transition: width .35s ease; }
-.ranking .score { text-align: right; font-size: 13px; }
+.ranking .score { text-align: end; font-size: 13px; }
 .ranking-more { color: var(--muted); font-size: 13px; padding: 6px; }
 
 .bench-out { margin-top: 18px; }
@@ -300,11 +312,14 @@ textarea {
     html, body { height: auto; }
     .app { display: block; }
     .stage { height: 68vh; min-height: 460px; }
-    .panel { border-left: 0; border-top: 1px solid var(--line); }
+    .panel { border-inline-start: 0; border-top: 1px solid var(--line); }
     .view { overflow: visible; }
-    .intro { left: 16px; right: 16px; }
+    .intro { inset-inline: 16px; }
     .intro p { font-size: 14px; }
-    .stage-tools { left: 16px; bottom: 12px; }
+    .stage-tools { inset-inline-start: 16px; bottom: 12px; }
+    .links { gap: 12px; }
+    .links > a[data-i18n="source"] { display: none; }
+    .profiles { padding-inline-start: 12px; gap: 12px; }
     .legend { display: none; }
     .topbar { padding: 12px 16px; }
     .view { flex: none; }
