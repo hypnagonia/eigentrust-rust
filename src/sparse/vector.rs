@@ -6,6 +6,7 @@ use std::cmp::Ordering;
 use super::entry::Entry;
 use super::matrix::CSRMatrix;
 use super::util::KBNSummer;
+use crate::error::{Error, Result};
 
 #[derive(Clone, PartialEq, Debug, Serialize)]
 pub struct Vector {
@@ -22,8 +23,9 @@ impl Vector {
 
     pub fn to_dense(&self) -> Vec<f64> {
         let mut dense = vec![0.0; self.dim];
+        // add, not assign: a sparse vector with repeated indices means their sum
         for e in &self.entries {
-            dense[e.index] = e.value;
+            dense[e.index] += e.value;
         }
         dense
     }
@@ -60,17 +62,17 @@ impl Vector {
         self.entries.iter().map(|e| e.value).sum()
     }
 
-    pub fn add_vec(&mut self, v1: &Self, v2: &Self) -> Result<(), String> {
+    pub fn add_vec(&mut self, v1: &Self, v2: &Self) -> Result<()> {
         self.binary_operation(v1, v2, |x, y| x + y)
     }
 
-    pub fn sub_vec(&mut self, v1: &Self, v2: &Self) -> Result<(), String> {
+    pub fn sub_vec(&mut self, v1: &Self, v2: &Self) -> Result<()> {
         self.binary_operation(v1, v2, |x, y| x - y)
     }
 
-    pub fn scale_vec(&mut self, a: f64, v1: &Self) -> Result<(), String> {
+    pub fn scale_vec(&mut self, a: f64, v1: &Self) -> Result<()> {
         if a.is_nan() {
-            return Err("alpha cannot be NaN".to_string());
+            return Err(Error::InvalidAlpha(a));
         }
         if a == 0.0 {
             self.dim = v1.dim;
@@ -91,10 +93,10 @@ impl Vector {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn mul_vec(&mut self, m: &CSRMatrix, v1: &Self) -> Result<(), String> {
+    pub fn mul_vec(&mut self, m: &CSRMatrix, v1: &Self) -> Result<()> {
         let dim = m.cs_matrix.dim()?;
         if dim != v1.dim {
-            return Err("Dimension mismatch".to_string());
+            return Err(Error::DimensionMismatch);
         }
 
         let dense = v1.to_dense();
@@ -120,10 +122,10 @@ impl Vector {
     }
 
     #[cfg(target_arch = "wasm32")]
-    pub fn mul_vec(&mut self, m: &CSRMatrix, v1: &Self) -> Result<(), String> {
+    pub fn mul_vec(&mut self, m: &CSRMatrix, v1: &Self) -> Result<()> {
         let dim = m.cs_matrix.dim()?;
         if dim != v1.dim {
-            return Err("Dimension mismatch".to_string());
+            return Err(Error::DimensionMismatch);
         }
 
         let dense = v1.to_dense();
@@ -148,12 +150,12 @@ impl Vector {
         self.entries.sort_by_key(|e| e.index);
     }
 
-    fn binary_operation<F>(&mut self, v1: &Self, v2: &Self, op: F) -> Result<(), String>
+    fn binary_operation<F>(&mut self, v1: &Self, v2: &Self, op: F) -> Result<()>
     where
         F: Fn(f64, f64) -> f64,
     {
         if v1.dim != v2.dim {
-            return Err("Dimension mismatch".to_string());
+            return Err(Error::DimensionMismatch);
         }
 
         let mut entries = Vec::with_capacity(v1.entries.len() + v2.entries.len());

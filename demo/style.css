@@ -300,6 +300,7 @@ textarea {
 
 .actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .error { color: var(--error); font-size: 14px; }
+#engineError { margin: 4px 0 8px; font-size: 13.5px; }
 
 /* selected peer */
 

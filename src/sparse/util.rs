@@ -1,4 +1,3 @@
-
 pub fn nil_if_empty<T>(slice: Vec<T>) -> Option<Vec<T>> {
     if slice.is_empty() {
         None
@@ -18,6 +17,12 @@ where
 pub struct KBNSummer {
     sum: f64,
     compensation: f64,
+}
+
+impl Default for KBNSummer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl KBNSummer {

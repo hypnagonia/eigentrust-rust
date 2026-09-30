@@ -21,6 +21,7 @@ const state = {
     hover: null,
     scores: [],         // [[peer, score]] from the last run, sorted
     large: null,        // { lt, pt, peers } when the network is too big to draw
+    error: null,        // engine error for the current network
     lastRun: null,      // { ms, mode }
 }
 
@@ -71,6 +72,7 @@ function clearNetwork() {
     state.selected = null
     state.large = null
     state.scores = []
+    state.error = null
 }
 
 // ---------- presets ----------
@@ -157,11 +159,11 @@ function networkCsv() {
     const lt = []
     const linked = new Set()
     for (const e of state.edges.values()) {
-        lt.push(`${e.from},${e.to},${e.w}`)
+        lt.push(`${csvField(e.from)},${csvField(e.to)},${e.w}`)
         linked.add(e.from)
         linked.add(e.to)
     }
-    const pt = [...state.seeds].filter((s) => linked.has(s)).map((s) => `${s},1`)
+    const pt = [...state.seeds].filter((s) => linked.has(s)).map((s) => `${csvField(s)},1`)
     return { lt: lt.join('\n'), pt: pt.join('\n') }
 }
 
@@ -186,10 +188,10 @@ async function compute() {
     const { lt, pt } = state.large || networkCsv()
     const res = await runEngine(lt, pt, state.alpha)
     running = false
+    state.error = res.error || null
     if (res.error) {
         state.scores = []
         state.lastRun = null
-        $('stats').textContent = res.error
     } else {
         state.scores = res.scores
         state.lastRun = { ms: res.ms, threads: res.threads }
@@ -602,6 +604,8 @@ function renderRanking() {
         }
         stats.textContent = parts.join(lang() === 'zh' || lang() === 'ja' ? '，' : lang() === 'ar' ? '، ' : ', ')
     }
+    $('engineError').textContent = state.error || ''
+    $('engineError').hidden = !state.error
     $('engine').textContent = engineText()
 }
 
@@ -737,22 +741,43 @@ function countLines(s) {
 
 const HEADER_NAMES = new Set(['i', 'j', 'v', 'from', 'to', 'value', 'weight', 'trust', 'level', 'peer', 'id', 'score',
     'source', 'target', 'src', 'dst', 'truster', 'trustee'])
-const clean = (f) => f.trim().replace(/^"(.*)"$/, '$1').trim()
+// one CSV line: quoted fields may contain commas and doubled quotes, same rules as the engine
+function splitCsvLine(line) {
+    const out = []
+    let cur = ''
+    let quoted = false
+    for (let i = 0; i < line.length; i++) {
+        const c = line[i]
+        if (quoted) {
+            if (c !== '"') cur += c
+            else if (line[i + 1] === '"') { cur += '"'; i++ }
+            else quoted = false
+        } else if (c === '"' && !cur.trim()) { cur = ''; quoted = true }
+        else if (c === ',') { out.push(cur.trim()); cur = '' }
+        else cur += c
+    }
+    out.push(cur.trim())
+    return out
+}
 
 function parseRows(text, valueCol) {
-    const lines = text.replace(/^﻿/, '').split('\n')
     const rows = []
-    lines.forEach((line, i) => {
-        if (!line.trim()) return
-        const f = line.split(',').map(clean)
-        if (i === 0) {
-            const header = f.length > valueCol ? isNaN(parseFloat(f[valueCol])) : f.every((x) => HEADER_NAMES.has(x.toLowerCase()))
-            if (header) return
+    let first = true
+    for (const line of text.replace(/^\uFEFF/, '').split(/\r?\n/)) {
+        if (!line.trim()) continue
+        const f = splitCsvLine(line)
+        if (first) {
+            first = false
+            const header = f.length > valueCol ? isNaN(Number(f[valueCol])) : f.every((x) => HEADER_NAMES.has(x.toLowerCase()))
+            if (header) continue
         }
         rows.push(f)
-    })
+    }
     return rows
 }
+
+// quote a field when it needs it
+const csvField = (v) => /[",\r\n]|^\s|\s$/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v)
 
 $('csvLoad').addEventListener('click', async () => {
     const err = $('csvError')
@@ -775,7 +800,7 @@ $('csvLoad').addEventListener('click', async () => {
     if (ltRows) for (const r of ltRows) { peers.add(r[0]); peers.add(r[1]) }
     if (!ltRows || peers.size > MAX_GRAPH_PEERS) {
         clearNetwork()
-        const count = ltRows ? peers.size : new Set(lt.split('\n').flatMap((l) => l.split(',').slice(0, 2).map(clean)).filter(Boolean)).size
+        const count = ltRows ? peers.size : new Set(lt.split('\n').flatMap((l) => splitCsvLine(l).slice(0, 2)).filter(Boolean)).size
         state.large = { lt, pt, peers: count }
         state.scores = res.scores
         state.lastRun = { ms: res.ms, threads: res.threads }
@@ -790,7 +815,7 @@ $('csvLoad').addEventListener('click', async () => {
 })
 
 $('csvDownload').addEventListener('click', () => {
-    const csv = 'peer,score\n' + state.scores.map(([p, s]) => `${p},${s}`).join('\n') + '\n'
+    const csv = 'peer,score\n' + state.scores.map(([p, s]) => `${csvField(p)},${s}`).join('\n') + '\n'
     const a = el('a', { href: URL.createObjectURL(new Blob([csv], { type: 'text/csv' })), download: 'eigentrust-scores.csv' })
     a.click()
     setTimeout(() => URL.revokeObjectURL(a.href), 1000)
