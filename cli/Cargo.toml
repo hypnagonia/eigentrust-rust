@@ -1,0 +1,21 @@
+[package]
+name = "eigentrust-cli"
+version = "0.2.0"
+edition = "2021"
+authors = ["Jenya <hypnagonia@gmail.com>"]
+license = "MIT OR Apache-2.0"
+description = "Command-line EigenTrust: rank peers from CSV trust statements"
+repository = "https://github.com/hypnagonia/eigentrust-rust"
+homepage = "https://eigentrust.jenyadoesapps.com"
+readme = "../README.md"
+keywords = ["eigentrust", "reputation", "trust", "cli", "csv"]
+categories = ["command-line-utilities", "algorithms"]
+
+[[bin]]
+name = "eigentrust"
+path = "src/main.rs"
+
+[dependencies]
+eigentrust = { version = "0.2.0", path = "..", features = ["csv", "parallel"] }
+csv = "1.3"
+env_logger = { version = "0.11", default-features = false, features = ["auto-color", "humantime"] }
