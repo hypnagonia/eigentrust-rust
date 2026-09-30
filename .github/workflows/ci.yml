@@ -1,0 +1,27 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --release
+
+  attribution:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: No Claude / Anthropic co-author trailers
+        run: |
+          if git log --format='%H%n%B' | grep -qiE 'co-authored-by:.*(claude|anthropic)|generated with .*claude|noreply@anthropic\.com'; then
+            echo "Found Claude / Anthropic attribution in commit history" >&2
+            git log --format='%h %s' -i -E --grep='co-authored-by:.*(claude|anthropic)' --grep='noreply@anthropic\.com' >&2
+            exit 1
+          fi
