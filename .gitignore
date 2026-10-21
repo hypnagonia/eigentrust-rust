@@ -147,3 +147,6 @@ pkg-parallel/
 demo/pkg/
 demo/pkg-parallel/
 .vercel
+
+# Local agent notes
+CLAUDE.md

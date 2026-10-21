@@ -145,8 +145,13 @@ cargo test --workspace --all-features   # tests, including doc tests
 cargo run --example basic               # library example
 ./build.sh                              # WASM builds, copied into demo/
 python3 -m http.server -d demo          # run the playground locally
-git config core.hooksPath .githooks     # once per clone
 ```
+
+## History
+
+- **2024** — first version: power iteration, multithreading, WASM build running in a web worker, web playground.
+- **2026** — rewritten as a library crate: input validation, typed errors, CSV input, CLI and WASM adapters,
+  stricter CI; published on crates.io.
 
 ## License
 
